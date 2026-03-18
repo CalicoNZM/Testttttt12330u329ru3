@@ -24,15 +24,67 @@
             </div>
         </div>
 
+        <!-- Career Choice -->
+        <div id="career-choice-screen" class="screen">
+            <div class="menu-bg"></div>
+            <div class="menu-content">
+                <h1 class="screen-title">Choose Your <span class="accent">Path</span></h1>
+                <div class="choice-grid">
+                    <div class="choice-card">
+                        <h2>Driver Career</h2>
+                        <p class="text-muted">Pick a real driver and race through the 2026 season.</p>
+                        <button id="career-real-btn" class="btn btn-primary"><span>Real Roster</span></button>
+                    </div>
+                    <div class="choice-card">
+                        <h2>Create Your Team</h2>
+                        <p class="text-muted">Build your own team from scratch and fight for glory.</p>
+                        <button id="career-custom-btn" class="btn btn-accent"><span>Create Team</span></button>
+                    </div>
+                </div>
+                <button id="back-choice-btn" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+            </div>
+        </div>
+
+        <!-- Create Team -->
+        <div id="create-team-screen" class="screen">
+            <header class="screen-header"><h1>Create Your <span class="accent">Team</span></h1></header>
+            <div class="create-form">
+                <div class="form-group">
+                    <label>Driver Name</label>
+                    <input type="text" id="input-driver-name" placeholder="e.g. Alex Cross" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Team Name</label>
+                    <input type="text" id="input-team-name" placeholder="e.g. Apex Racing" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Team Color</label>
+                    <input type="color" id="input-team-color" value="#ff4444">
+                </div>
+                <div class="form-group">
+                    <label>Allocate Stats <span class="text-muted" id="points-left">(10 pts remaining)</span></label>
+                    <div class="stat-alloc">
+                        <div class="alloc-row"><span>Pace</span><button class="alloc-btn" data-stat="pac" data-dir="-1">−</button><span id="alloc-pac">75</span><button class="alloc-btn" data-stat="pac" data-dir="1">+</button></div>
+                        <div class="alloc-row"><span>Racecraft</span><button class="alloc-btn" data-stat="rac" data-dir="-1">−</button><span id="alloc-rac">75</span><button class="alloc-btn" data-stat="rac" data-dir="1">+</button></div>
+                        <div class="alloc-row"><span>Awareness</span><button class="alloc-btn" data-stat="awa" data-dir="-1">−</button><span id="alloc-awa">75</span><button class="alloc-btn" data-stat="awa" data-dir="1">+</button></div>
+                    </div>
+                </div>
+                <div class="form-buttons">
+                    <button id="back-create-btn" class="btn btn-secondary"><span>Back</span></button>
+                    <button id="confirm-create-btn" class="btn btn-primary"><span>Start Season</span></button>
+                </div>
+            </div>
+        </div>
+
         <!-- Driver Selection -->
         <div id="selection-screen" class="screen">
             <header class="screen-header">
                 <h1>Choose your <span class="accent">Driver</span></h1>
-                <p id="selection-subtitle" class="text-muted">Pick a driver to begin your 2026 campaign.</p>
+                <p class="text-muted">Pick a driver to begin your 2026 campaign.</p>
             </header>
             <div id="driver-grid" class="driver-grid"></div>
             <footer class="screen-footer">
-                <button id="back-to-menu-btn" class="btn btn-secondary"><span>Back</span></button>
+                <button id="back-select-btn" class="btn btn-secondary"><span>Back</span></button>
                 <button id="confirm-driver-btn" class="btn btn-primary" disabled><span>Confirm Driver</span></button>
             </footer>
         </div>
@@ -40,7 +92,10 @@
         <!-- Career Hub -->
         <div id="career-hub-screen" class="screen">
             <header class="hub-header">
-                <h1>Career <span class="accent">Hub</span></h1>
+                <div>
+                    <h1>Career <span class="accent">Hub</span></h1>
+                    <p class="text-muted" id="season-info">Round 1 of 24 — Melbourne</p>
+                </div>
                 <div class="hub-info">
                     <p class="currency" id="currency-display">$25,000</p>
                     <button id="menu-from-hub-btn" class="btn btn-small btn-secondary"><span>Menu</span></button>
@@ -51,9 +106,9 @@
                 <div id="hub-car-panel" class="panel"></div>
             </div>
             <footer class="hub-footer">
-                <select id="track-select" class="select-input"></select>
+                <button id="standings-btn" class="btn btn-secondary"><span>Standings</span></button>
                 <button id="shop-btn" class="btn btn-accent"><span>Upgrades</span></button>
-                <button id="race-btn" class="btn btn-primary"><span>Race</span></button>
+                <button id="race-btn" class="btn btn-primary"><span>Next Race</span></button>
             </footer>
         </div>
 
@@ -90,11 +145,12 @@
             </div>
         </div>
 
-        <!-- Modal Overlay -->
+        <!-- Modal -->
         <div id="modal-overlay" class="modal-overlay hidden">
             <div id="modal-content" class="modal-box"></div>
         </div>
     </div>
+    <script src="data.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
