@@ -3,6 +3,15 @@
 // =============================================================================
 
 let game = {}, race = {}, particles = [];
+let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', drs:' ' } };
+try { const s = localStorage.getItem('uformula_settings'); if(s) userSettings = JSON.parse(s); } catch(e){}
+
+function formatTime(ms) {
+    if(!ms) return "--:--.---";
+    const min = Math.floor(ms/60000), sec = Math.floor((ms%60000)/1000), milli = Math.floor(ms%1000);
+    return min + ':' + sec.toString().padStart(2,'0') + '.' + milli.toString().padStart(3,'0');
+}
+
 const $ = id => document.getElementById(id);
 const screens = { menu:$('main-menu-screen'), choice:$('career-choice-screen'), create:$('create-team-screen'), selection:$('selection-screen'), hub:$('career-hub-screen'), race:$('race-screen') };
 const hud = { pos:$('hud-pos'), lap:$('hud-lap'), time:$('hud-time'), speed:$('hud-speed'), prompt:$('race-prompt'), drs:$('drs-btn'), flag:$('flag-indicator'), dmgBar:$('damage-bar') };
@@ -203,6 +212,26 @@ function setupCanvas() {
     canvas.width=cw; canvas.height=ch; canvas.style.marginTop=hudH+'px';
 }
 
+function openSettings() {
+    if(race.running) race.isPaused = true;
+    let html = `<h2>Settings & Controls</h2><div class="settings-grid">`;
+    for(const [act, key] of Object.entries(userSettings.keys)) {
+        html += `<div class="settings-row"><span style="text-transform:uppercase">${act}</span><kbd id="bind-${act}" onclick="rebindKey('${act}')">${key===' '?'SPACE':key}</kbd></div>`;
+    }
+    html += `</div><div class="modal-buttons"><button class="btn btn-primary" onclick="closeSettings()"><span>Resume</span></button></div>`;
+    showModal(html);
+}
+function closeSettings() {
+    hideModal();
+    if(race.running) {
+        race.isPaused = false;
+        race.lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+}
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+
 async function startRaceWeekend() {
     const round = game.round||0;
     if (round >= CALENDAR.length) {
@@ -210,12 +239,11 @@ async function startRaceWeekend() {
         window.showScreen = showScreen; return;
     }
     const cal = CALENDAR[round];
-    // Qualifying
-    showModal(`<h2>${cal.name}</h2><p style="text-align:center" class="text-muted">${cal.city} — Round ${round+1} of ${CALENDAR.length}</p><p style="text-align:center;margin:1rem 0">Ready for qualifying?</p><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runQualifying('${cal.id}',${cal.laps})"><span>Start Qualifying</span></button></div>`);
-    window.runQualifying = runQualifying;
+    showModal(`<h2>${cal.name}</h2><p style="text-align:center" class="text-muted">${cal.city} — Round ${round+1} of ${CALENDAR.length}</p><p style="text-align:center;margin:1rem 0;font-weight:bold;color:var(--blue)">Free Practice 1 (FP1)</p><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runSession('${cal.id}','practice',2)"><span>Start FP1</span></button><button class="btn btn-secondary" onclick="hideModal();runSession('${cal.id}','quali',1)"><span>Skip Practice</span></button></div>`);
+    window.runSession = runSession;
 }
 
-async function runQualifying(trackId, laps) {
+async function runSession(trackId, phase, laps, grid=null) {
     showScreen(screens.race); setupCanvas();
     const canvas=$('race-canvas');
     const {points,virtualW,virtualH} = trackGen(trackId, canvas.width, canvas.height);
@@ -224,96 +252,88 @@ async function runQualifying(trackId, laps) {
     const fa=Math.atan2(p2.y-p1.y,p2.x-p1.x)+Math.PI/2, hw=PHYSICS.trackWidth/2;
 
     race = {
-        running:false, phase:'quali', laps:1, trackId, path, spline, virtualW, virtualH,
+        running:false, isPaused:false, phase, laps, trackId, path, spline, virtualW, virtualH,
         billboards:generateBillboards(spline),
         finishLine:{x1:p1.x-hw*Math.cos(fa),y1:p1.y-hw*Math.sin(fa),x2:p1.x+hw*Math.cos(fa),y2:p1.y+hw*Math.sin(fa)},
         drsZone:{det:spline.length-120,start:spline.length-80,end:40},
         keys:{},camera:{x:0,y:0},flag:{status:'green',dur:0},
-        player:null,ai:[],startTime:0,lapStart:0,grid:[],raceLaps:laps,
+        player:null,ai:[],startTime:0,lapStart:0,grid,lastTime:0
     };
 
     const drivers = getDrivers();
     const playerData = drivers.find(d=>d.id===game.selectedId);
     race.player = createCar(playerData, true);
-    race.ai = drivers.filter(d=>d.id!==game.selectedId).map(d=>createCar(d,false));
-    const all = [race.player,...race.ai];
-    const sa = Math.atan2(p2.y-p1.y,p2.x-p1.x), pa=sa+Math.PI/2;
-    all.forEach((car,i)=>{ car.x=p1.x-Math.cos(sa)*Math.floor(i/2)*44+Math.cos(pa)*(i%2?26:-26); car.y=p1.y-Math.sin(sa)*Math.floor(i/2)*44+Math.sin(pa)*(i%2?26:-26); car.angle=sa; });
+
+    if (phase === 'practice') {
+        race.ai = [];
+        race.player.x = p1.x; race.player.y = p1.y; race.player.angle = Math.atan2(p2.y-p1.y,p2.x-p1.x);
+    } else {
+        race.ai = drivers.filter(d=>d.id!==game.selectedId).map(d=>createCar(d,false));
+        const allCars = [race.player,...race.ai];
+        const sa = Math.atan2(p2.y-p1.y,p2.x-p1.x), pa=sa+Math.PI/2;
+        if (phase === 'race' && grid) {
+            grid.forEach((entry,i) => {
+                const car = allCars.find(c=>c.data.id===entry.id);
+                if(car){ car.x=p1.x-Math.cos(sa)*Math.floor(i/2)*44+Math.cos(pa)*(i%2?26:-26); car.y=p1.y-Math.sin(sa)*Math.floor(i/2)*44+Math.sin(pa)*(i%2?26:-26); car.angle=sa; }
+            });
+        } else {
+            allCars.forEach((car,i)=>{ car.x=p1.x-Math.cos(sa)*Math.floor(i/2)*44+Math.cos(pa)*(i%2?26:-26); car.y=p1.y-Math.sin(sa)*Math.floor(i/2)*44+Math.sin(pa)*(i%2?26:-26); car.angle=sa; });
+        }
+    }
 
     particles=[];
-    hud.prompt.textContent='QUALIFYING'; await sleep(1500);
+    hud.prompt.textContent = phase==='race'?'RACE START':phase.toUpperCase(); await sleep(1500);
     hud.prompt.textContent='3'; await sleep(800);
     hud.prompt.textContent='2'; await sleep(800);
     hud.prompt.textContent='1'; await sleep(800);
     hud.prompt.textContent='GO!';
-    race.running=true; race.startTime=performance.now(); race.lapStart=race.startTime;
-    requestAnimationFrame(gameLoop);
-    await sleep(1500); hud.prompt.textContent='';
-}
-
-async function startRaceFromGrid(trackId, laps, grid) {
-    showScreen(screens.race); setupCanvas();
-    const canvas=$('race-canvas');
-    const {points,virtualW,virtualH} = trackGen(trackId, canvas.width, canvas.height);
-    const {path,spline} = generateSpline(points);
-    const p1=spline[0],p2=spline[1];
-    const fa=Math.atan2(p2.y-p1.y,p2.x-p1.x)+Math.PI/2, hw=PHYSICS.trackWidth/2;
-
-    race = {
-        running:false, phase:'race', laps, trackId, path, spline, virtualW, virtualH,
-        billboards:generateBillboards(spline),
-        finishLine:{x1:p1.x-hw*Math.cos(fa),y1:p1.y-hw*Math.sin(fa),x2:p1.x+hw*Math.cos(fa),y2:p1.y+hw*Math.sin(fa)},
-        drsZone:{det:spline.length-120,start:spline.length-80,end:40},
-        keys:{},camera:{x:0,y:0},flag:{status:'green',dur:0},
-        player:null,ai:[],startTime:0,lapStart:0,grid,
-    };
-
-    const drivers = getDrivers();
-    const playerData = drivers.find(d=>d.id===game.selectedId);
-    race.player = createCar(playerData, true);
-    race.ai = drivers.filter(d=>d.id!==game.selectedId).map(d=>createCar(d,false));
-    const allCars = [race.player,...race.ai];
-
-    // Place cars in GRID ORDER
-    const sa = Math.atan2(p2.y-p1.y,p2.x-p1.x), pa=sa+Math.PI/2;
-    grid.forEach((entry,i) => {
-        const car = allCars.find(c=>c.data.id===entry.id);
-        if(car){ car.x=p1.x-Math.cos(sa)*Math.floor(i/2)*44+Math.cos(pa)*(i%2?26:-26); car.y=p1.y-Math.sin(sa)*Math.floor(i/2)*44+Math.sin(pa)*(i%2?26:-26); car.angle=sa; }
-    });
-
-    particles=[];
-    hud.prompt.textContent='RACE START'; await sleep(1500);
-    hud.prompt.textContent='3'; await sleep(800);
-    hud.prompt.textContent='2'; await sleep(800);
-    hud.prompt.textContent='1'; await sleep(800);
-    hud.prompt.textContent='GO!';
-    race.running=true; race.startTime=performance.now(); race.lapStart=race.startTime;
+    race.running=true; race.startTime=performance.now(); race.lapStart=race.startTime; race.lastTime=race.startTime;
     requestAnimationFrame(gameLoop);
     await sleep(1500); hud.prompt.textContent='';
 }
 
 function gameLoop(ts) {
-    if(!race.running) return;
+    if(!race.running || race.isPaused) return;
+    race.lastTime = ts;
     update(ts); render();
-    if(race.player.lap > race.laps) { if(race.phase==='quali') finishQualifying(); else finishRace(); return; }
+    if(race.player.lap > race.laps) { 
+        if(race.phase==='practice') finishPractice();
+        else if(race.phase==='quali') finishQualifying(); 
+        else finishRace(); 
+        return; 
+    }
     requestAnimationFrame(gameLoop);
+}
+
+function finishPractice() {
+    race.running = false;
+    const pTime = performance.now() - race.startTime;
+    game.rep = (game.rep||0) + 5;
+    save();
+    let html = `<h2>FP1 Complete</h2><p style="text-align:center;margin:1rem 0">Best Lap: ${formatTime(pTime/race.laps)}</p>`;
+    html += `<p style="text-align:center;color:var(--green)">+5 Reputation</p>`;
+    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runSession('${race.trackId}','quali',1)"><span>Start Qualifying</span></button></div>`;
+    showModal(html);
 }
 
 function finishQualifying() {
     race.running = false;
     const drivers = getDrivers();
+    const trackBase = CALENDAR[game.round||0].baseLap || 80000;
+    const pTime = performance.now() - race.startTime;
+    
     const grid = drivers.map(d => {
-        const base = 60000 + (100-d.pac)*200 + (100-d.exp)*25 + (Math.random()-.5)*400;
-        return { id:d.id, time:base };
+        const aiTime = trackBase + (100-d.pac)*150 + (100-d.exp)*20 + (Math.random()-.5)*300;
+        return { id:d.id, time: d.id===game.selectedId ? pTime : aiTime };
     });
-    if(race.player) { grid.find(g=>g.id===game.selectedId).time = performance.now()-race.startTime; }
     grid.sort((a,b)=>a.time-b.time);
 
     const pPos = grid.findIndex(g=>g.id===game.selectedId)+1;
-    let html = `<h2>Qualifying</h2><div class="results-list">`;
-    grid.forEach((g,i)=>{ const d=drivers.find(dr=>dr.id===g.id); html+=`<p class="${g.id===game.selectedId?'highlight':''}">${i+1}. ${d.name}</p>`; });
+    let html = `<h2>Qualifying Results</h2><div class="results-list">`;
+    grid.forEach((g,i)=>{ const d=drivers.find(dr=>dr.id===g.id); html+=`<p class="${g.id===game.selectedId?'highlight':''}">${i+1}. ${d.name} <span style="float:right;color:var(--muted)">${formatTime(g.time)}</span></p>`; });
     html += `</div><p style="text-align:center;font-size:1.1rem;margin-top:1rem;color:var(--green)">You qualified P${pPos}!</p>`;
-    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();startRaceFromGrid('${race.trackId}',${race.raceLaps},qualiGrid)"><span>Start Race</span></button></div>`;
+    const raceLaps = CALENDAR[game.round||0].laps;
+    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runSession('${race.trackId}','race',${raceLaps},qualiGrid)"><span>To Grid</span></button></div>`;
     window.qualiGrid = grid;
     showModal(html);
 }
@@ -326,7 +346,6 @@ function finishRace() {
     const pts = POINTS_SYSTEM[pos-1]||0;
     game.currency += payout;
     game.rep = (game.rep||0) + Math.max(0,12-pos);
-    // Award championship points to ALL drivers
     all.forEach((c,i) => { game.standings[c.data.id] = (game.standings[c.data.id]||0) + (POINTS_SYSTEM[i]||0); });
     game.round = (game.round||0) + 1;
     save();
@@ -371,11 +390,11 @@ function updateCar(car, ts) {
     car.targetIdx=bi;
 
     if(car.isPlayer) {
-        const k=race.keys;
-        if(k['ArrowUp']||k['w']||k['gas']) throttle=1;
-        if(k['ArrowDown']||k['s']||k['brake']) brake=1;
-        if(k['ArrowLeft']||k['a']||k['left']) steerInput=-1;
-        if(k['ArrowRight']||k['d']||k['right']) steerInput=1;
+        const k=race.keys, s=userSettings.keys;
+        if(k[s.gas]||k['ArrowUp']||k['w']) throttle=1;
+        if(k[s.brake]||k['ArrowDown']||k['s']) brake=1;
+        if(k[s.left]||k['ArrowLeft']||k['a']) steerInput=-1;
+        if(k[s.right]||k['ArrowRight']||k['d']) steerInput=1;
     } else {
         // AI with adaptive lookahead
         const look=Math.max(15,Math.min(40,Math.round(car.speed*9)));
@@ -383,11 +402,11 @@ function updateCar(car, ts) {
         const ta=Math.atan2(sp[ti].y-car.y,sp[ti].x-car.x);
         let ad=ta-car.angle; while(ad>Math.PI)ad-=2*Math.PI;while(ad<-Math.PI)ad+=2*Math.PI;
         steerInput=Math.max(-1,Math.min(1,ad*2.2));
-        // Corner braking
-        const cl=Math.round(22+car.awareness*16), ci=(bi+cl)%sp.length;
-        const ts2=car.topSpeed*Math.max(0.28,1-sp[ci].curvature*(1.6+car.awareness*.5));
-        if(car.speed>ts2*1.05){throttle=0;brake=Math.min(1,(car.speed-ts2)*.2);}
-        else throttle=Math.min(1,.7+car.awareness*.3);
+        // Corner braking (Aggressive)
+        const cl=Math.round(18+car.awareness*12), ci=(bi+cl)%sp.length;
+        const ts2=car.topSpeed*Math.max(0.35,1-sp[ci].curvature*(1.2+car.awareness*.3));
+        if(car.speed>ts2*1.02){throttle=0;brake=Math.min(1,(car.speed-ts2)*.35);}
+        else throttle=Math.min(1,.85+car.awareness*.2);
         // Collision avoidance
         const allC=[race.player,...race.ai];
         for(const o of allC){if(o===car)continue;const dx=o.x-car.x,dy=o.y-car.y,dist=Math.hypot(dx,dy);
@@ -423,7 +442,7 @@ function updateCar(car, ts) {
     const inDRS = car.targetIdx>=race.drsZone.start || car.targetIdx<=race.drsZone.end;
     if(car.targetIdx===race.drsZone.det) car.drsAvailable=car.timeBehind<0.8&&car.position>1;
     if(!inDRS||brake>0) car.drsActive=false;
-    if(car.isPlayer&&(race.keys['r']||race.keys['drs']||race.keys[' '])&&inDRS&&car.drsAvailable) car.drsActive=true;
+    if(car.isPlayer&&(race.keys[userSettings.keys.drs]||race.keys['drs']||race.keys[' '])&&inDRS&&car.drsAvailable) car.drsActive=true;
     else if(!car.isPlayer&&inDRS&&car.drsAvailable) car.drsActive=true;
 
     // Track limits
@@ -527,12 +546,38 @@ function init() {
     $('standings-btn').onclick = renderStandings;
     $('race-btn').onclick = startRaceWeekend;
 
-    window.addEventListener('keydown',e=>{if(race.keys)race.keys[e.key]=true;});
-    window.addEventListener('keyup',e=>{if(race.keys)race.keys[e.key]=false;});
-    const bind=(el,key)=>{if(!el)return;el.addEventListener('touchstart',e=>{e.preventDefault();if(race.keys)race.keys[key]=true;},{passive:false});el.addEventListener('touchend',e=>{e.preventDefault();if(race.keys)race.keys[key]=false;},{passive:false});};
+    let bindingAction = null;
+    window.rebindKey = (action) => {
+        bindingAction = action;
+        document.querySelectorAll('kbd').forEach(k=>k.classList.remove('listening'));
+        $(`bind-${action}`).classList.add('listening');
+        $(`bind-${action}`).textContent = '...';
+    };
+
+    window.addEventListener('keydown', e => {
+        if(bindingAction) {
+            e.preventDefault();
+            userSettings.keys[bindingAction] = e.key;
+            localStorage.setItem('uformula_settings', JSON.stringify(userSettings));
+            bindingAction = null;
+            openSettings(); // Refresh
+        } else if(race.keys) {
+            race.keys[e.key] = true;
+            race.keys[e.key.toLowerCase()] = true; // WASD fallback support
+        }
+    });
+    window.addEventListener('keyup', e => {
+        if(!bindingAction && race.keys) {
+            race.keys[e.key] = false;
+            race.keys[e.key.toLowerCase()] = false;
+        }
+    });
+    const bind=(el,key)=>{if(!el)return;el.addEventListener('touchstart',e=>{e.preventDefault();if(race.keys)race.keys[userSettings.keys[key]||key]=true;},{passive:false});el.addEventListener('touchend',e=>{e.preventDefault();if(race.keys)race.keys[userSettings.keys[key]||key]=false;},{passive:false});};
     bind($('touch-gas'),'gas');bind($('touch-brake'),'brake');bind($('touch-left'),'left');bind($('touch-right'),'right');
-    $('drs-btn').addEventListener('mousedown',()=>{if(race.keys)race.keys['drs']=true;});
-    $('drs-btn').addEventListener('mouseup',()=>{if(race.keys)race.keys['drs']=false;});
+    $('drs-btn').addEventListener('mousedown',()=>{if(race.keys)race.keys[userSettings.keys['drs']||' ']=true;});
+    $('drs-btn').addEventListener('mouseup',()=>{if(race.keys)race.keys[userSettings.keys['drs']||' ']=false;});
+    
+    if($('settings-btn')) $('settings-btn').onclick = openSettings;
 
     showScreen(screens.menu);
 }
