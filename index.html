@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Uformula</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Main Menu -->
+        <div id="main-menu-screen" class="screen active">
+            <div class="menu-bg"></div>
+            <div class="menu-content">
+                <h1 class="game-title">U<span class="accent">formula</span></h1>
+                <p class="subtitle">Season 2026</p>
+                <div class="menu-buttons">
+                    <button id="career-mode-btn" class="btn btn-primary"><span>Career Mode</span></button>
+                    <button id="quick-race-btn" class="btn btn-secondary"><span>Quick Race</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver Selection -->
+        <div id="selection-screen" class="screen">
+            <header class="screen-header">
+                <h1>Choose your <span class="accent">Driver</span></h1>
+                <p id="selection-subtitle" class="text-muted">Pick a driver to begin your 2026 campaign.</p>
+            </header>
+            <div id="driver-grid" class="driver-grid"></div>
+            <footer class="screen-footer">
+                <button id="back-to-menu-btn" class="btn btn-secondary"><span>Back</span></button>
+                <button id="confirm-driver-btn" class="btn btn-primary" disabled><span>Confirm Driver</span></button>
+            </footer>
+        </div>
+
+        <!-- Career Hub -->
+        <div id="career-hub-screen" class="screen">
+            <header class="hub-header">
+                <h1>Career <span class="accent">Hub</span></h1>
+                <div class="hub-info">
+                    <p class="currency" id="currency-display">$25,000</p>
+                    <button id="menu-from-hub-btn" class="btn btn-small btn-secondary"><span>Menu</span></button>
+                </div>
+            </header>
+            <div class="hub-grid">
+                <div id="hub-driver-panel" class="panel"></div>
+                <div id="hub-car-panel" class="panel"></div>
+            </div>
+            <footer class="hub-footer">
+                <select id="track-select" class="select-input"></select>
+                <button id="shop-btn" class="btn btn-accent"><span>Upgrades</span></button>
+                <button id="race-btn" class="btn btn-primary"><span>Race</span></button>
+            </footer>
+        </div>
+
+        <!-- Race Screen -->
+        <div id="race-screen" class="screen">
+            <canvas id="race-canvas"></canvas>
+            <canvas id="minimap-canvas" width="220" height="140"></canvas>
+            <div id="race-hud">
+                <div class="hud-left">
+                    <p>POS <span id="hud-pos" class="hud-big">--/22</span></p>
+                    <p>LAP <span id="hud-lap" class="hud-big">0/3</span></p>
+                    <div id="damage-bar-container"><div id="damage-bar"></div></div>
+                    <p class="damage-label">DMG</p>
+                </div>
+                <div class="hud-center">
+                    <div id="race-prompt"></div>
+                    <div id="flag-indicator"></div>
+                    <button id="drs-btn" class="drs-indicator">DRS</button>
+                </div>
+                <div class="hud-right">
+                    <p>TIME <span id="hud-time" class="hud-big">00:00.0</span></p>
+                    <p>SPEED <span id="hud-speed" class="hud-big">0</span> kph</p>
+                </div>
+            </div>
+            <div id="touch-controls">
+                <div class="touch-left-group">
+                    <button id="touch-brake" class="touch-btn touch-brake">BRAKE</button>
+                    <button id="touch-gas" class="touch-btn touch-gas">GAS</button>
+                </div>
+                <div class="touch-right-group">
+                    <button id="touch-left" class="touch-btn touch-dir">◀</button>
+                    <button id="touch-right" class="touch-btn touch-dir">▶</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Overlay -->
+        <div id="modal-overlay" class="modal-overlay hidden">
+            <div id="modal-content" class="modal-box"></div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
