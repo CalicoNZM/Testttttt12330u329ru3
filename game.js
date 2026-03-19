@@ -3,7 +3,7 @@
 // =============================================================================
 
 let game = {}, race = {}, particles = [];
-let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', drs:' ' } };
+let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', ovr:' ' } };
 try { const s = localStorage.getItem('uformula_settings'); if(s) userSettings = JSON.parse(s); } catch(e){}
 
 function formatTime(ms) {
@@ -79,6 +79,7 @@ function drawParticles(ctx) {
 
 // --- CAR DRAWING ---
 function drawCar(ctx, car, isPlayer) {
+    if(car.dnf && Math.random()>0.4) spawnDebris(car.x, car.y, '#555', 2);
     const dmg = car.damage||0;
     ctx.save(); ctx.translate(car.x,car.y); ctx.rotate(car.angle+Math.PI/2);
     const c=car.data.color, dark=shadeColor(c,-40), L=14, W=6;
@@ -92,7 +93,7 @@ function drawCar(ctx, car, isPlayer) {
     ctx.fillStyle='#222'; ctx.fillRect(-W-2,-L+6,2,4);ctx.fillRect(W,-L+6,2,4);ctx.fillRect(-W-2,L-8,2,4);ctx.fillRect(W,L-8,2,4);
     if(dmg>0.2){ctx.strokeStyle=`rgba(255,80,0,${dmg*.6})`;ctx.lineWidth=.8;for(let i=0;i<Math.floor(dmg*6);i++){const sx=(Math.sin(i*73)*.5)*W*2-W,sy=(Math.cos(i*47)*.5)*L*2-L;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx+Math.sin(i*31)*4,sy+Math.cos(i*19)*4);ctx.stroke();}}
     if(isPlayer){ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(0,-L-2,2.5,0,Math.PI*2);ctx.fill();}
-    if(car.drsActive){ctx.fillStyle='#3b82f6';ctx.fillRect(-W+2,L,W*2-4,2);}
+    if(car.ovrActive){ctx.fillStyle='#3b82f6';ctx.fillRect(-W+2,L,W*2-4,2);}
     ctx.restore();
 }
 
@@ -198,8 +199,8 @@ function createCar(driverData, isPlayer) {
     const P = PHYSICS;
     return {
         data:driverData, isPlayer, x:0, y:0, speed:0, angle:0, steerAngle:0,
-        lap:0, progress:0, position:0, targetIdx:1, drsAvailable:false, drsActive:false, timeBehind:0,
-        lastPos:{x:0,y:0}, crossed:false, offTimer:0, penalty:0, damage:0, isSpun:false,
+        lap:0, progress:0, position:0, targetIdx:1, ovrAvailable:false, ovrActive:false, timeBehind:0,
+        lastPos:{x:0,y:0}, offTimer:0, penalty:0, damage:0, isSpun:false,
         grip:1.0, slideAngle:0,
         topSpeed: P.baseTopSpeed + (s.pac/100)*P.paceFactor,
         accel: P.baseAccel + (s.pac/100)*P.accelFactor,
@@ -260,7 +261,7 @@ async function runSession(trackId, phase, laps, grid=null) {
         running:false, isPaused:false, phase, laps, trackId, path, spline, virtualW, virtualH,
         billboards:generateBillboards(spline),
         finishLine:{x1:p1.x-hw*Math.cos(fa),y1:p1.y-hw*Math.sin(fa),x2:p1.x+hw*Math.cos(fa),y2:p1.y+hw*Math.sin(fa)},
-        drsZone:{det:spline.length-120,start:spline.length-80,end:40},
+        ovrZone:{det:spline.length-120,start:spline.length-80,end:40},
         keys:{},camera:{x:0,y:0},flag:{status:'green',dur:0},
         player:null,ai:[],startTime:0,lapStart:0,grid,lastTime:0
     };
@@ -386,11 +387,12 @@ function update(ts) {
     hud.speed.textContent=Math.round(race.player.speed*55);
     hud.time.textContent=formatTime(ts-race.lapStart);
     if($('hud-penalties')) $('hud-penalties').textContent = race.player.penalties > 0 ? `+${race.player.penalties.toFixed(1)}s` : '';
-    $('pit-btn').classList.toggle('available', race.phase !== 'quali');
+    if($('pit-btn')) $('pit-btn').classList.toggle('available', race.phase !== 'quali');
     const dp=Math.max(0,1-race.player.damage);
     hud.dmgBar.style.width=(dp*100)+'%';
     hud.dmgBar.style.background=dp>.6?'var(--green)':dp>.3?'#eab308':'var(--accent)';
-    hud.drs.className='drs-indicator'+(race.player.drsActive?' active':race.player.drsAvailable?' available':'');
+    
+    if($('ovr-btn')) $('ovr-btn').className='hud-action-btn'+(race.player.ovrActive?' active':race.player.ovrAvailable?' available':'');
 }
 
 function updateCar(car, ts) {
@@ -520,7 +522,18 @@ function checkCollisions(cars) {
 }
 
 function checkBillboardHits(cars) {
-    for(const bb of race.billboards){if(bb.hit)continue;for(const car of cars){if(Math.hypot(car.x-bb.x,car.y-bb.y)<20){bb.hit=true;car.damage=Math.min(1,car.damage+.15);car.speed*=.55;spawnDebris(bb.x,bb.y,bb.color,8);if(car.isPlayer){hud.prompt.textContent='BILLBOARD!';setTimeout(()=>hud.prompt.textContent='',1500);}break;}}}
+    for(const bb of race.billboards){
+        if(bb.hit)continue;
+        for(const car of cars){
+            if(Math.hypot(car.x-bb.x,car.y-bb.y)<20){
+                bb.hit=true;car.damage=Math.min(1,car.damage+.15);
+                car.x-=Math.cos(car.angle)*15; car.y-=Math.sin(car.angle)*15; car.speed*=-0.1;
+                spawnDebris(bb.x,bb.y,bb.color,8);
+                if(car.isPlayer){hud.prompt.textContent='CRASH!';setTimeout(()=>hud.prompt.textContent='',1500);}
+                break;
+            }
+        }
+    }
 }
 
 function checkLap(car,ts) {
@@ -638,8 +651,8 @@ function init() {
     });
     const bind=(el,key)=>{if(!el)return;el.addEventListener('touchstart',e=>{e.preventDefault();if(race.keys)race.keys[userSettings.keys[key]||key]=true;},{passive:false});el.addEventListener('touchend',e=>{e.preventDefault();if(race.keys)race.keys[userSettings.keys[key]||key]=false;},{passive:false});};
     bind($('touch-gas'),'gas');bind($('touch-brake'),'brake');bind($('touch-left'),'left');bind($('touch-right'),'right');
-    $('drs-btn').addEventListener('mousedown',()=>{if(race.keys)race.keys[userSettings.keys['drs']||' ']=true;});
-    $('drs-btn').addEventListener('mouseup',()=>{if(race.keys)race.keys[userSettings.keys['drs']||' ']=false;});
+    $('ovr-btn').addEventListener('mousedown',()=>{if(race.keys)race.keys[userSettings.keys['ovr']||' ']=true;});
+    $('ovr-btn').addEventListener('mouseup',()=>{if(race.keys)race.keys[userSettings.keys['ovr']||' ']=false;});
     
     if($('pit-btn')) $('pit-btn').onclick = () => {
         if(race.running && race.player && !race.player.isPitting && race.phase !== 'quali') {
@@ -648,6 +661,7 @@ function init() {
         }
     };
     if($('settings-btn')) $('settings-btn').onclick = openSettings;
+    if($('reset-career-btn')) $('reset-career-btn').onclick = () => { if(confirm("Are you sure you want to completely wipe your career?")) { localStorage.removeItem('uformula2026v2'); location.reload(); } };
 
     showScreen(screens.menu);
 }
