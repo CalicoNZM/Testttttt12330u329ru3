@@ -106,8 +106,8 @@ const PHYSICS = {
     baseAccel: 0.018, accelFactor: 0.022,
     baseHandling: 0.028, handleFactor: 0.048,
     drsBonus: 1.14, drag: 0.997, tyreScrub: 0.003,
-    offTrackGrip: 0.82, collisionRadius: 16, collisionForce: 2.0,
-    steerSmoothing: 0.12, // How fast steering responds (lower = smoother)
-    brakePower: 0.035,    // Progressive braking force
-    gripLimit: 0.92,      // Grip budget factor
+    offTrackGrip: 0.96, collisionRadius: 16, collisionForce: 2.0,
+    steerSmoothing: 0.12,
+    brakePower: 0.035,
+    gripLimit: 0.92,
 };

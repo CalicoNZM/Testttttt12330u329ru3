@@ -93,6 +93,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .drs-indicator { font-weight: 700; padding: 0.3rem 1rem; border-radius: 0.4rem; border: 2px solid #4b5563; background: #1f2937; color: var(--muted); cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
 .drs-indicator.available { border-color: var(--green); background: rgba(34,197,94,0.15); color: var(--green); }
 .drs-indicator.active { border-color: var(--blue); background: var(--blue); color: #fff; }
+.pit-indicator { font-weight: 900; padding: 0.3rem 1rem; border-radius: 0.4rem; border: 2px solid #f59e0b; background: rgba(245,158,11,0.2); color: #f59e0b; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; display: none; margin-top: 4px; }
+.pit-indicator.available { display: block; }
+.pit-indicator.active { background: #f59e0b; color: #000; animation: pulse 1s infinite; }
 #flag-indicator { display: none; padding: 0.3rem 0.8rem; border-radius: 0.4rem; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; }
 #flag-indicator.yellow { display: block; background: #eab308; color: #000; }
 #damage-bar-container { width: 60px; height: 8px; background: #374151; border-radius: 4px; overflow: hidden; margin-top: 4px; }

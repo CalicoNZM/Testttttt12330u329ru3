@@ -53,16 +53,21 @@ function generateSpline(layout) {
 
 function generateBillboards(spline) {
     const bbs = [], colors = ['#e10600','#3671C6','#FF8700','#27F4D2','#FFD700','#FF87BC','#229971','#C8AA00'];
-    for (let i = 0; i < spline.length; i += 50) {
-        if (Math.random() > 0.35) continue;
+    for (let i = 0; i < spline.length; i += 12) {
         const p=spline[i], n=spline[(i+1)%spline.length];
+        const curv = p.curvature || 0;
         const ang = Math.atan2(n.y-p.y,n.x-p.x)+Math.PI/2;
-        const side = Math.random()>0.5?1:-1;
-        bbs.push({ x:p.x+Math.cos(ang)*(PHYSICS.trackWidth/2+20+Math.random()*25)*side, y:p.y+Math.sin(ang)*(PHYSICS.trackWidth/2+20+Math.random()*25)*side,
-            w:30+Math.random()*18, h:10, angle:ang+Math.PI/2, color:colors[Math.floor(Math.random()*colors.length)], hit:false });
+        if (curv > 0.05) {
+            bbs.push({ x:p.x+Math.cos(ang)*(PHYSICS.trackWidth/2+14), y:p.y+Math.sin(ang)*(PHYSICS.trackWidth/2+14), w:24, h:12, angle:ang+Math.PI/2, color:colors[i%colors.length], hit:false });
+            bbs.push({ x:p.x-Math.cos(ang)*(PHYSICS.trackWidth/2+14), y:p.y-Math.sin(ang)*(PHYSICS.trackWidth/2+14), w:24, h:12, angle:ang+Math.PI/2, color:colors[(i+1)%colors.length], hit:false });
+        } else if (i % 60 === 0 && Math.random() > 0.2) {
+            const side = Math.random()>0.5?1:-1;
+            bbs.push({ x:p.x+Math.cos(ang)*(PHYSICS.trackWidth/2+20+Math.random()*25)*side, y:p.y+Math.sin(ang)*(PHYSICS.trackWidth/2+20+Math.random()*25)*side, w:30+Math.random()*18, h:10, angle:ang+Math.PI/2, color:colors[Math.floor(Math.random()*colors.length)], hit:false });
+        }
     }
     return bbs;
 }
+
 
 // --- PARTICLES ---
 function spawnDebris(x,y,color,n) { for(let i=0;i<n;i++) particles.push({x,y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:35+Math.random()*25,color,size:1+Math.random()*2.5}); }
@@ -340,7 +345,12 @@ function finishQualifying() {
 
 function finishRace() {
     race.running = false;
-    const all = [race.player,...race.ai].sort((a,b)=>b.progress-a.progress);
+    const all = [race.player,...race.ai].sort((a,b) => {
+        if(a.dnf && !b.dnf) return 1; if(b.dnf && !a.dnf) return -1;
+        const aProg = a.progress - (a.penalties||0)*0.0125;
+        const bProg = b.progress - (b.penalties||0)*0.0125;
+        return bProg - aProg;
+    });
     const pos = all.findIndex(c=>c.isPlayer)+1;
     const payout = PAYOUTS[pos-1]||0;
     const pts = POINTS_SYSTEM[pos-1]||0;
@@ -351,7 +361,11 @@ function finishRace() {
     save();
 
     let html = `<h2>Race Results</h2><div class="results-list">`;
-    all.forEach((c,i) => { html += `<p class="${c.isPlayer?'highlight':''}">${i+1}. ${c.data.name} ${c.damage>.3?'🔧':''}  <span style="color:var(--muted);float:right">+${POINTS_SYSTEM[i]||0}pts</span></p>`; });
+    all.forEach((c,i) => {
+        const penStr = c.penalties>0 ? ` <span style="color:#ef4444">+${c.penalties.toFixed(1)}s</span>` : '';
+        const dnfStr = c.dnf ? ' DNF' : ''; 
+        html += `<p class="${c.isPlayer?'highlight':''}">${i+1}. ${c.data.name} ${c.damage>.3?'🔧':''}${dnfStr}${penStr}  <span style="color:var(--muted);float:right">+${POINTS_SYSTEM[i]||0}pts</span></p>`; 
+    });
     html += `</div><p style="text-align:center;font-size:1.1rem;margin-top:1rem;color:var(--green)">+$${payout.toLocaleString()} | +${pts} pts</p>`;
     html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();showScreen(screens.hub);renderHub()"><span>Continue</span></button></div>`;
     window.showScreen=showScreen; window.renderHub=renderHub;
@@ -370,7 +384,9 @@ function update(ts) {
     hud.pos.textContent=`${race.player.position}/${all.length}`;
     hud.lap.textContent=`${Math.max(1,Math.min(race.player.lap,race.laps))}/${race.laps}`;
     hud.speed.textContent=Math.round(race.player.speed*55);
-    hud.time.textContent=((ts-race.lapStart)/1000).toFixed(1);
+    hud.time.textContent=formatTime(ts-race.lapStart);
+    if($('hud-penalties')) $('hud-penalties').textContent = race.player.penalties > 0 ? `+${race.player.penalties.toFixed(1)}s` : '';
+    $('pit-btn').classList.toggle('available', race.phase !== 'quali');
     const dp=Math.max(0,1-race.player.damage);
     hud.dmgBar.style.width=(dp*100)+'%';
     hud.dmgBar.style.background=dp>.6?'var(--green)':dp>.3?'#eab308':'var(--accent)';
@@ -378,9 +394,25 @@ function update(ts) {
 }
 
 function updateCar(car, ts) {
-    if(car.isSpun && car.speed<0.1) car.isSpun=false;
-    if(car.penalty>0) car.penalty--;
+    if(car.dnf) { car.speed = 0; return; }
     car.lastPos={x:car.x,y:car.y};
+    
+    if(car.isPitting) {
+        car.speed = car.topSpeed * 0.25; 
+        car.steerAngle = 0;
+        car.pitTimer--;
+        if(car.pitTimer <= 0) {
+            car.isPitting = false; car.damage = 0;
+            if(car.isPlayer) { hud.prompt.textContent = 'GO GO GO'; setTimeout(()=>hud.prompt.textContent='',1000); }
+        }
+        car.targetIdx = car.targetIdx||0;
+        const sp=race.spline;
+        const ta=Math.atan2(sp[(car.targetIdx+5)%sp.length].y-car.y, sp[(car.targetIdx+5)%sp.length].x-car.x);
+        car.angle = ta; car.x += Math.cos(car.angle)*car.speed; car.y += Math.sin(car.angle)*car.speed;
+        car.progress = Math.max(car.lap, car.lap + car.targetIdx/sp.length);
+        return;
+    }
+
     let throttle=0,brake=0,steerInput=0;
     const sp=race.spline;
 
@@ -396,6 +428,7 @@ function updateCar(car, ts) {
         if(k[s.left]||k['ArrowLeft']||k['a']) steerInput=-1;
         if(k[s.right]||k['ArrowRight']||k['d']) steerInput=1;
     } else {
+        if(car.damage > 0.45 && race.laps - car.lap > 1 && !car.isPittingNextLap) car.isPittingNextLap = true;
         // AI with adaptive lookahead
         const look=Math.max(15,Math.min(40,Math.round(car.speed*9)));
         const ti=(bi+look)%sp.length;
@@ -448,25 +481,40 @@ function updateCar(car, ts) {
     // Track limits
     const ctx=$('race-canvas').getContext('2d');
     ctx.lineWidth=PHYSICS.trackWidth;
-    if(!ctx.isPointInStroke(race.path,car.x,car.y)){car.speed*=PHYSICS.offTrackGrip;car.offTimer++;
-        if(car.offTimer>100){car.penalty=180;car.offTimer=0;if(car.isPlayer){hud.prompt.textContent='TRACK LIMITS!';setTimeout(()=>hud.prompt.textContent='',2000);}}
+    if(!ctx.isPointInStroke(race.path,car.x,car.y)){
+        car.speed*=PHYSICS.offTrackGrip; 
+        car.offTimer=(car.offTimer||0)+1;
+        if(car.offTimer>60){
+            car.penalties = (car.penalties||0)+0.5;
+            car.offTimer=0;
+            if(car.isPlayer){
+                hud.prompt.textContent='TRACK LIMITS!';
+                setTimeout(()=>hud.prompt.textContent='',1500);
+            }
+        }
     } else car.offTimer=0;
 
     checkLap(car,ts);
-    car.progress = car.lap + car.targetIdx/sp.length;
+    car.progress = Math.max(car.lap, car.lap + car.targetIdx/sp.length);
 }
 
 function checkCollisions(cars) {
     for(let i=0;i<cars.length;i++) for(let j=i+1;j<cars.length;j++) {
-        const a=cars[i],b=cars[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+        const a=cars[i],b=cars[j];
+        if(a.dnf||b.dnf)continue;
+        const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
         if(d<PHYSICS.collisionRadius){
             const sd=Math.abs(a.speed-b.speed),dmg=sd*.04;
             a.damage=Math.min(1,a.damage+dmg);b.damage=Math.min(1,b.damage+dmg);
+            if(a.damage>=1.0 && !a.dnf){a.dnf=true;if(a.isPlayer)hud.prompt.textContent='DNF';}
+            if(b.damage>=1.0 && !b.dnf){b.dnf=true;if(b.isPlayer)hud.prompt.textContent='DNF';}
             const ang=Math.atan2(dy,dx),ov=PHYSICS.collisionRadius-d,f=ov*PHYSICS.collisionForce;
             a.x-=Math.cos(ang)*f/2;a.y-=Math.sin(ang)*f/2;b.x+=Math.cos(ang)*f/2;b.y+=Math.sin(ang)*f/2;
             spawnDebris((a.x+b.x)/2,(a.y+b.y)/2,a.data.color,4);
-            if(sd>2&&race.flag.status==='green'){race.flag.status='yellow';race.flag.dur=300;hud.flag.className='yellow';hud.flag.style.display='block';hud.flag.textContent='⚠ YELLOW FLAG';
-                const sp=a.speed>b.speed?b:a;sp.isSpun=true;sp.speed*=.15;sp.angle+=(Math.random()-.5)*Math.PI;}
+            if(sd>2&&race.flag.status==='green'){
+                race.flag.status='yellow';race.flag.dur=300;hud.flag.className='yellow';hud.flag.style.display='block';hud.flag.textContent='⚠ YELLOW FLAG';
+                const sp=a.speed>b.speed?b:a;sp.isSpun=true;sp.speed*=.15;sp.angle+=(Math.random()-.5)*Math.PI;
+            }
         }
     }
 }
@@ -476,11 +524,27 @@ function checkBillboardHits(cars) {
 }
 
 function checkLap(car,ts) {
-    const f=race.finishLine;
-    const cross=((f.y1-f.y2)*(car.lastPos.x-f.x1)+(f.x2-f.x1)*(car.lastPos.y-f.y1))*((f.y1-f.y2)*(car.x-f.x1)+(f.x2-f.x1)*(car.y-f.y1))<0&&
-        ((car.lastPos.y-car.y)*(f.x1-car.lastPos.x)+(car.x-car.lastPos.x)*(f.y1-car.lastPos.y))*((car.lastPos.y-car.y)*(f.x2-car.lastPos.x)+(car.x-car.lastPos.x)*(f.y2-car.lastPos.y))<0;
-    if(cross&&!car.crossed&&car.targetIdx>race.spline.length*.85){car.lap++;car.crossed=true;if(car.isPlayer)race.lapStart=ts;}
-    else if(car.targetIdx<race.spline.length*.1)car.crossed=false;
+    if(car.dnf) return;
+    const len = race.spline.length;
+    if(car.lastTargetIdx > len*0.9 && car.targetIdx < len*0.1) {
+        if(car.highestIdx > len*0.5) {
+            car.lap++;
+            if(car.isPlayer) {
+                race.lapStart = ts;
+                $('pit-btn').classList.remove('available');
+                $('pit-btn').classList.add('hidden');
+            }
+            if(car.isPittingNextLap) {
+                car.isPitting = true;
+                car.pitTimer = 150;
+                car.isPittingNextLap = false;
+                if(car.isPlayer) { $('pit-btn').classList.remove('active'); hud.prompt.textContent = 'BOX BOX BOX'; }
+            }
+        }
+        car.highestIdx = 0;
+    }
+    car.highestIdx = Math.max(car.highestIdx||0, car.targetIdx);
+    car.lastTargetIdx = car.targetIdx;
 }
 
 // --- RENDERING ---
@@ -577,6 +641,12 @@ function init() {
     $('drs-btn').addEventListener('mousedown',()=>{if(race.keys)race.keys[userSettings.keys['drs']||' ']=true;});
     $('drs-btn').addEventListener('mouseup',()=>{if(race.keys)race.keys[userSettings.keys['drs']||' ']=false;});
     
+    if($('pit-btn')) $('pit-btn').onclick = () => {
+        if(race.running && race.player && !race.player.isPitting && race.phase !== 'quali') {
+            race.player.isPittingNextLap = !race.player.isPittingNextLap;
+            $('pit-btn').classList.toggle('active', race.player.isPittingNextLap);
+        }
+    };
     if($('settings-btn')) $('settings-btn').onclick = openSettings;
 
     showScreen(screens.menu);
