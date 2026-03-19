@@ -14,7 +14,7 @@ function formatTime(ms) {
 
 const $ = id => document.getElementById(id);
 const screens = { menu:$('main-menu-screen'), choice:$('career-choice-screen'), create:$('create-team-screen'), selection:$('selection-screen'), hub:$('career-hub-screen'), race:$('race-screen') };
-const hud = { pos:$('hud-pos'), lap:$('hud-lap'), time:$('hud-time'), speed:$('hud-speed'), prompt:$('race-prompt'), drs:$('drs-btn'), flag:$('flag-indicator'), dmgBar:$('damage-bar') };
+const hud = { pos:$('hud-pos'), lap:$('hud-lap'), time:$('hud-time'), speed:$('hud-speed'), prompt:$('race-prompt'), ovr:$('ovr-btn'), flag:$('flag-indicator'), dmgBar:$('damage-bar') };
 const modal = { overlay:$('modal-overlay'), content:$('modal-content') };
 
 function showScreen(s) { Object.values(screens).forEach(el => el.classList.remove('active')); s.classList.add('active'); }
@@ -199,8 +199,10 @@ function createCar(driverData, isPlayer) {
     const P = PHYSICS;
     return {
         data:driverData, isPlayer, x:0, y:0, speed:0, angle:0, steerAngle:0,
-        lap:0, progress:0, position:0, targetIdx:1, ovrAvailable:false, ovrActive:false, timeBehind:0,
-        lastPos:{x:0,y:0}, offTimer:0, penalty:0, damage:0, isSpun:false,
+        lap:0, progress:0, position:0, targetIdx:1, lastTargetIdx:0, highestIdx:0,
+        ovrAvailable:false, ovrActive:false, timeBehind:0,
+        lastPos:{x:0,y:0}, offTimer:0, penalties:0, damage:0, isSpun:false, dnf:false,
+        isPitting:false, pitTimer:0, isPittingNextLap:false,
         grip:1.0, slideAngle:0,
         topSpeed: P.baseTopSpeed + (s.pac/100)*P.paceFactor,
         accel: P.baseAccel + (s.pac/100)*P.accelFactor,
@@ -460,30 +462,28 @@ function updateCar(car, ts) {
 
     // PROGRESSIVE ACCELERATION & BRAKING
     const effTop = car.topSpeed*(1-car.damage*.4);
-    const drs = car.drsActive?PHYSICS.drsBonus:1;
-    const pen = car.penalty>0?.25:1;
+    const ovrBoost = car.ovrActive?PHYSICS.ovrBonus:1;
+    const pen = (car.penalty||0)>0?.25:1;
     const accelCurve = car.accel * (1 + (1-sr)*0.5); // Faster accel at low speed
-    car.speed += accelCurve * throttle * drs * pen;
+    car.speed += accelCurve * throttle * ovrBoost * pen;
     car.speed *= (1 - PHYSICS.brakePower*brake); // Progressive braking
     car.speed *= PHYSICS.drag;
     // Grip model: hard steering at speed costs more
     const gripCost = Math.abs(car.steerAngle) * sr * PHYSICS.tyreScrub;
     car.speed *= (1 - gripCost);
-    car.speed = Math.max(0, Math.min(effTop*drs, car.speed));
+    car.speed = Math.max(0, Math.min(effTop*ovrBoost, car.speed));
     car.x += Math.cos(car.angle)*car.speed;
     car.y += Math.sin(car.angle)*car.speed;
 
-    // DRS
-    const inDRS = car.targetIdx>=race.drsZone.start || car.targetIdx<=race.drsZone.end;
-    if(car.targetIdx===race.drsZone.det) car.drsAvailable=car.timeBehind<0.8&&car.position>1;
-    if(!inDRS||brake>0) car.drsActive=false;
-    if(car.isPlayer&&(race.keys[userSettings.keys.drs]||race.keys['drs']||race.keys[' '])&&inDRS&&car.drsAvailable) car.drsActive=true;
-    else if(!car.isPlayer&&inDRS&&car.drsAvailable) car.drsActive=true;
+    // OVR (Manual Override Mode)
+    const inOVR = car.targetIdx>=race.ovrZone.start || car.targetIdx<=race.ovrZone.end;
+    if(car.targetIdx===race.ovrZone.det) car.ovrAvailable=car.timeBehind<0.8&&car.position>1;
+    if(!inOVR||brake>0) car.ovrActive=false;
+    if(car.isPlayer&&(race.keys[userSettings.keys.ovr]||race.keys['ovr']||race.keys[' '])&&inOVR&&car.ovrAvailable) car.ovrActive=true;
+    else if(!car.isPlayer&&inOVR&&car.ovrAvailable) car.ovrActive=true;
 
-    // Track limits
-    const ctx=$('race-canvas').getContext('2d');
-    ctx.lineWidth=PHYSICS.trackWidth;
-    if(!ctx.isPointInStroke(race.path,car.x,car.y)){
+    // Track limits (Radius-based)
+    if(best > PHYSICS.trackWidth / 2){
         car.speed*=PHYSICS.offTrackGrip; 
         car.offTimer=(car.offTimer||0)+1;
         if(car.offTimer>60){
@@ -536,6 +536,9 @@ function checkBillboardHits(cars) {
     }
 }
 
+function save() { game.lastSave = Date.now(); localStorage.setItem('uformula2026v2', JSON.stringify(game)); }
+function load() { try { const d = localStorage.getItem('uformula2026v2'); if(d) { game = JSON.parse(d); return true; } } catch(e){} return false; }
+
 function checkLap(car,ts) {
     if(car.dnf) return;
     const len = race.spline.length;
@@ -551,7 +554,7 @@ function checkLap(car,ts) {
                 car.isPitting = true;
                 car.pitTimer = 150;
                 car.isPittingNextLap = false;
-                if(car.isPlayer) { $('pit-btn').classList.remove('active'); hud.prompt.textContent = 'BOX BOX BOX'; }
+                if(car.isPlayer) { $('pit-btn').classList.remove('active'); hud.prompt.textContent = 'IN THE BOX'; }
             }
         }
         car.highestIdx = 0;

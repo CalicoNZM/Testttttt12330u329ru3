@@ -105,7 +105,7 @@ const PHYSICS = {
     baseTopSpeed: 4.5, paceFactor: 2.8,
     baseAccel: 0.018, accelFactor: 0.022,
     baseHandling: 0.028, handleFactor: 0.048,
-    drsBonus: 1.14, drag: 0.997, tyreScrub: 0.003,
+    ovrBonus: 1.14, drag: 0.997, tyreScrub: 0.003,
     offTrackGrip: 0.96, collisionRadius: 16, collisionForce: 2.0,
     steerSmoothing: 0.12,
     brakePower: 0.035,
