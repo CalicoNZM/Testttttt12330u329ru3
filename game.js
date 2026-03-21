@@ -13,9 +13,22 @@ function formatTime(ms) {
 }
 
 const $ = id => document.getElementById(id);
-const screens = { menu:$('main-menu-screen'), choice:$('career-choice-screen'), create:$('create-team-screen'), selection:$('selection-screen'), hub:$('career-hub-screen'), race:$('race-screen') };
+const screens = { 
+    menu:$('main-menu-screen'), 
+    startChoice:$('start-choice-screen'),
+    onlineLobby:$('online-lobby-screen'),
+    offlineLanding:$('offline-landing-screen'),
+    typeChoice:$('career-type-screen'),
+    choice:$('career-choice-screen'), 
+    create:$('create-team-screen'), 
+    selection:$('selection-screen'), 
+    hub:$('career-hub-screen'), 
+    race:$('race-screen') 
+};
 const hud = { pos:$('hud-pos'), lap:$('hud-lap'), time:$('hud-time'), speed:$('hud-speed'), prompt:$('race-prompt'), ovr:$('ovr-btn'), flag:$('flag-indicator'), dmgBar:$('damage-bar') };
 const modal = { overlay:$('modal-overlay'), content:$('modal-content') };
+
+let net = { peer:null, conn:null, isHost:false, players:[], myId:null, myName:'Driver' };
 
 function showScreen(s) { Object.values(screens).forEach(el => el.classList.remove('active')); s.classList.add('active'); }
 function showModal(html) { modal.content.innerHTML = html; modal.overlay.classList.remove('hidden'); }
@@ -112,8 +125,17 @@ function statBar(label,base,total) {
 }
 
 function initNewGame(selectedId, drivers) {
-    const d = drivers.find(dr => dr.id === selectedId);
-    game = { selectedId, drivers: JSON.parse(JSON.stringify(drivers)), currency:25000, upgrades:{engine:-1,aero:-1,brakes:-1}, rep:0, round:0, standings:{} };
+    const p = drivers.find(d => d.id === selectedId);
+    game = { 
+        selectedId, 
+        drivers: JSON.parse(JSON.stringify(drivers)), 
+        playerDriver: p,
+        teamDrivers: (game.careerMode === 'champ') ? drivers.filter(d => d.team === p.team) : [p],
+        currency:25000, 
+        upgrades:{engine:0,aero:0,brakes:0}, 
+        rep:0, round:0, standings:{},
+        careerMode: game.careerMode || 'player'
+    };
     drivers.forEach(dr => game.standings[dr.id] = 0);
     save(); showScreen(screens.hub); renderHub();
 }
@@ -127,8 +149,40 @@ function renderHub() {
     const race = CALENDAR[Math.min(round, CALENDAR.length-1)];
     $('currency-display').textContent = `$${game.currency.toLocaleString()}`;
     $('season-info').textContent = `Round ${round+1} of ${CALENDAR.length} — ${race.city}`;
-    $('hub-driver-panel').innerHTML = `<h2 style="color:${d.color};font-size:1.1rem">${d.name}</h2><p class="text-muted" style="font-size:.8rem">${d.team}</p><p class="text-muted" style="font-size:.7rem;margin-top:.5rem">Rep: ${game.rep||0}</p><p class="text-muted" style="font-size:.7rem">Champ Pts: ${game.standings[d.id]||0}</p>`;
-    $('hub-car-panel').innerHTML = `<h2 style="font-size:1rem;margin-bottom:.75rem">Car Performance</h2>`+statBar('Engine (Pace)',d.pac,stats.pac)+statBar('Aero (Racecraft)',d.rac,stats.rac)+statBar('Brakes (Awareness)',d.awa,stats.awa);
+    
+    // Hub Panels
+    $('hub-driver-panel').innerHTML = `
+        <div class="panel-header"><h3>DRIVER</h3></div>
+        <p style="font-size:1.4rem; font-weight:900; color:${d.color}">${d.name}</p>
+        <p class="text-muted" style="margin-bottom:1rem">${d.team}</p>
+        <div class="stat-row"><label>PACE <span>${d.pac}</span></label><div class="stat-bar"><div class="stat-fill" style="width:${d.pac}%"></div></div></div>
+        <div class="stat-row"><label>RACECRAFT <span>${d.rac}</span></label><div class="stat-bar"><div class="stat-fill" style="width:${d.rac}%"></div></div></div>
+        <div class="stat-row"><label>AWARENESS <span>${d.awa}</span></label><div class="stat-bar"><div class="stat-fill" style="width:${d.awa}%"></div></div></div>
+        <div class="ovr-big" style="text-align:center; margin-top:1rem; font-size:2.5rem; font-weight:900">${d.ovr}</div>
+        ${game.careerMode==='player'?`<button class="btn btn-accent btn-small" style="width:100%; margin-top:1rem" onclick="simulateTraining()"><span>Sim Training</span></button>`:''}
+    `;
+
+    $('hub-car-panel').innerHTML = `
+        <div class="panel-header"><h3>TEAM & TECH</h3></div>
+        <p style="font-weight:700">Team Strategy: <span class="accent">${game.careerMode==='champ'?'Manager':'Contract'}</span></p>
+        <div style="margin-top:1rem">
+            ${game.careerMode==='champ' ? `
+                <p class="text-muted" style="margin-bottom:0.8rem">Select race driver:</p>
+                <div style="display:flex; flex-direction:column; gap:0.5rem">
+                    ${game.teamDrivers.map((td,i) => `<button class="btn ${game.selectedId===td.id?'btn-primary':'btn-secondary'} btn-small" onclick="pickChampDriver(${i})"><span>${td.name}</span></button>`).join('')}
+                </div>
+            ` : `
+                <p class="text-muted">Season Objective: Championship Win</p>
+                <button class="btn btn-secondary btn-small" style="width:100%; margin-top:1rem" onclick="checkContracts()"><span>Check Contracts</span></button>
+            `}
+        </div>
+    `;
+}
+
+function pickChampDriver(idx) {
+    if(game.careerMode !== 'champ') return;
+    game.selectedId = game.teamDrivers[idx].id;
+    save(); renderHub();
 }
 
 function renderDriverGrid() {
@@ -193,6 +247,30 @@ function confirmCreateTeam() {
     initNewGame('player', filtered);
 }
 
+function simulateTraining() {
+    if(game.careerMode !== 'player') return;
+    const stats = ['pac', 'rac', 'awa'];
+    const s = stats[Math.floor(Math.random()*stats.length)];
+    game.playerDriver[s] = Math.min(99, (game.playerDriver[s]||70) + 1);
+    game.playerDriver.ovr = Math.round((game.playerDriver.pac + game.playerDriver.rac + game.playerDriver.awa + (game.playerDriver.exp||70))/4);
+    alert(`Training Complete! ${s.toUpperCase()} increased!`);
+    renderHub();
+    save();
+}
+
+function checkContracts() {
+    if(game.careerMode !== 'player') return;
+    if(game.round % 4 === 0) {
+        const betterTeam = DRIVERS.find(d => d.ovr > game.playerDriver.ovr + 5);
+        if(betterTeam && confirm(`Offer from ${betterTeam.team}! Do you want to switch teams?`)) {
+            game.playerDriver.team = betterTeam.team;
+            game.playerDriver.color = betterTeam.color;
+            renderHub();
+            save();
+        }
+    }
+}
+
 // --- RACE ENGINE ---
 function createCar(driverData, isPlayer) {
     const s = isPlayer ? getPlayerStats(driverData) : driverData;
@@ -211,6 +289,14 @@ function createCar(driverData, isPlayer) {
     };
 }
 
+function pickChampDriver(idx) {
+    if(game.careerMode !== 'champ' || !game.teamDrivers) return;
+    game.playerDriver = game.teamDrivers[idx];
+    alert(`Active Driver: ${game.playerDriver.name}`);
+    renderHub();
+    save();
+}
+
 function setupCanvas() {
     const container = screens.race, canvas=$('race-canvas');
     const hudH = $('race-hud').offsetHeight;
@@ -226,9 +312,13 @@ function openSettings() {
     for(const [act, key] of Object.entries(userSettings.keys)) {
         html += `<div class="settings-row"><span style="text-transform:uppercase">${act}</span><kbd id="bind-${act}" onclick="rebindKey('${act}')">${key===' '?'SPACE':key}</kbd></div>`;
     }
-    html += `</div><div class="modal-buttons"><button class="btn btn-primary" onclick="closeSettings()"><span>Resume</span></button></div>`;
+    html += `</div><div class="modal-buttons" style="flex-direction:column; gap:0.5rem">
+            <button class="btn btn-primary" style="width:100%" onclick="closeSettings()"><span>Resume</span></button>
+            <button class="btn btn-secondary btn-small" style="width:100%; opacity:0.6" onclick="resetCareer()"><span>Wipe Career Data</span></button>
+        </div>`;
     showModal(html);
 }
+window.resetCareer = () => { if(confirm("Permanently wipe all career data?")) { localStorage.removeItem('uformula2026v2'); location.reload(); } };
 function closeSettings() {
     hideModal();
     if(race.running) {
@@ -357,23 +447,28 @@ function finishRace() {
     const pos = all.findIndex(c=>c.isPlayer)+1;
     const payout = PAYOUTS[pos-1]||0;
     const pts = POINTS_SYSTEM[pos-1]||0;
+    
     game.currency += payout;
-    game.rep = (game.rep||0) + Math.max(0,12-pos);
-    all.forEach((c,i) => { game.standings[c.data.id] = (game.standings[c.data.id]||0) + (POINTS_SYSTEM[i]||0); });
-    game.round = (game.round||0) + 1;
-    save();
-
-    let html = `<h2>Race Results</h2><div class="results-list">`;
-    all.forEach((c,i) => {
-        const penStr = c.penalties>0 ? ` <span style="color:#ef4444">+${c.penalties.toFixed(1)}s</span>` : '';
-        const dnfStr = c.dnf ? ' DNF' : ''; 
-        html += `<p class="${c.isPlayer?'highlight':''}">${i+1}. ${c.data.name} ${c.damage>.3?'🔧':''}${dnfStr}${penStr}  <span style="color:var(--muted);float:right">+${POINTS_SYSTEM[i]||0}pts</span></p>`; 
+    if(game.careerMode === 'player') {
+        game.playerDriver.exp = (game.playerDriver.exp||70) + Math.max(1, 4 - Math.floor(pos/4));
+    }
+    
+    // Update Championship Standings
+    all.forEach((car, i) => {
+        const p = POINTS_SYSTEM[i] || 0;
+        game.standings[car.data.id] = (game.standings[car.data.id] || 0) + p;
     });
-    html += `</div><p style="text-align:center;font-size:1.1rem;margin-top:1rem;color:var(--green)">+$${payout.toLocaleString()} | +${pts} pts</p>`;
-    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();showScreen(screens.hub);renderHub()"><span>Continue</span></button></div>`;
-    window.showScreen=showScreen; window.renderHub=renderHub;
+
+    let html = `<h2>Race Finished!</h2><div class="results-list">`;
+    all.forEach((c,i) => { 
+        const penStr = (c.penalties||0)>0 ? ` <span style="color:#ef4444">+${c.penalties.toFixed(1)}s</span>` : '';
+        html += `<p class="${c.isPlayer?'highlight':''}">${i+1}. ${c.data.name} ${c.dnf?'(DNF)':''} ${penStr}</p>`; 
+    });
+    html += `</div><p style="text-align:center;font-size:1.1rem;margin-top:1rem;color:var(--green)">P${pos} | +$${payout.toLocaleString()} | +${pts} pts</p>`;
+    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="game.round++;save();hideModal();showScreen(screens.hub);renderHub()"><span>Return to Hub</span></button></div>`;
     showModal(html);
 }
+
 
 // --- UPDATE LOOP ---
 function update(ts) {
@@ -617,6 +712,26 @@ function init() {
     $('career-real-btn').onclick = () => { showScreen(screens.selection); renderDriverGrid(); };
     $('career-custom-btn').onclick = () => { showScreen(screens.create); setupCreateTeam(); };
     $('back-choice-btn').onclick = () => showScreen(screens.menu);
+    // V6 Screen Transitions
+    $('start-btn').onclick = () => showScreen(screens.startChoice);
+    $('mode-offline-btn').onclick = () => showScreen(screens.offlineLanding);
+    $('mode-online-btn').onclick = initMultiplayer;
+    $('offline-career-btn').onclick = () => {
+        if(load()) showScreen(screens.hub);
+        else showScreen(screens.typeChoice);
+    };
+    $('type-player-btn').onclick = () => { game.careerMode='player'; showScreen(screens.choice); };
+    $('type-champ-btn').onclick = () => { game.careerMode='champ'; showScreen(screens.choice); };
+    
+    // Multiplayer Listeners
+    $('create-party-btn').onclick = createParty;
+    $('join-party-btn').onclick = () => joinParty($('join-id-input').value.trim());
+    $('leave-party-btn').onclick = leaveParty;
+    $('start-multi-btn').onclick = startMultiplayerRace;
+
+    $('career-real-btn').onclick = () => { game.customTeam=false; renderSelection(); showScreen(screens.selection); };
+    $('career-custom-btn').onclick = () => { game.customTeam=true; showScreen(screens.create); };
+    $('back-choice-btn').onclick = () => showScreen(screens.typeChoice);
     $('back-select-btn').onclick = () => showScreen(screens.choice);
     $('back-create-btn').onclick = () => showScreen(screens.choice);
     $('confirm-create-btn').onclick = confirmCreateTeam;
@@ -625,6 +740,7 @@ function init() {
     $('shop-btn').onclick = renderUpgradeShop;
     $('standings-btn').onclick = renderStandings;
     $('race-btn').onclick = startRaceWeekend;
+    $('quick-race-btn').onclick = startQuickRace;
 
     let bindingAction = null;
     window.rebindKey = (action) => {
@@ -668,4 +784,62 @@ function init() {
 
     showScreen(screens.menu);
 }
+
+// --- V6 NETWORK LOGIC ---
+function initMultiplayer() {
+    if(!window.Peer) { alert("PeerJS not loaded!"); return; }
+    showScreen(screens.onlineLobby);
+    if(net.peer) return;
+    net.peer = new Peer();
+    net.peer.on('open', id => { net.myId = id; console.log("My Peer ID:", id); });
+    net.peer.on('connection', conn => {
+        if(!net.isHost) return;
+        setupConn(conn);
+    });
+}
+function createParty() {
+    net.isHost = true;
+    net.myName = $('lobby-name-input').value || 'Host';
+    $('lobby-setup').classList.add('hidden');
+    $('lobby-active').classList.remove('hidden');
+    $('party-id-display').textContent = net.myId || 'Connecting...';
+    $('start-multi-btn').classList.remove('hidden');
+    updatePlayerList([{name:net.myName, id:net.myId}]);
+}
+function joinParty(id) {
+    if(!id) return;
+    net.myName = $('lobby-name-input').value || 'Guest';
+    const conn = net.peer.connect(id);
+    setupConn(conn);
+    $('lobby-setup').classList.add('hidden');
+    $('lobby-active').classList.remove('hidden');
+    $('party-id-display').textContent = id;
+}
+function setupConn(conn) {
+    net.conn = conn;
+    conn.on('open', () => {
+        conn.send({type:'join', name:net.myName});
+    });
+    conn.on('data', data => {
+        if(data.type === 'list') updatePlayerList(data.players);
+        if(data.type === 'start') { /* Launch Race */ }
+    });
+}
+function leaveParty() { location.reload(); }
+function updatePlayerList(players) {
+    net.players = players;
+    const list = $('player-list');
+    list.innerHTML = players.map(p => `<div class="player-item ${p.id===net.myId?'is-me':''}">${p.name}</div>`).join('');
+}
+function startMultiplayerRace() { /* Host starts */ }
+
+function startQuickRace() {
+    game.careerMode = 'quick';
+    const d = DRIVERS[Math.floor(Math.random()*DRIVERS.length)];
+    const t = CALENDAR[Math.floor(Math.random()*CALENDAR.length)];
+    initNewGame(d.id, JSON.parse(JSON.stringify(DRIVERS)));
+    race.track = t;
+    startRaceWeekend();
+}
+
 init();

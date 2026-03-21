@@ -15,37 +15,130 @@
         <div id="main-menu-screen" class="screen active">
             <div class="menu-bg"></div>
             <div class="menu-content">
-                <h1 class="game-title">U<span class="accent">formula</span></h1>
-                <p class="subtitle">Season 2026</p>
+                <h1 class="game-title">U<span class="accent">formula</span> <span style="font-size:0.4em;vertical-align:top;opacity:0.6">V6</span></h1>
+                <p class="subtitle">Next-Gen Racing</p>
                 <div class="menu-buttons">
-                    <button id="career-mode-btn" class="btn btn-primary"><span>Career Mode</span></button>
-                    <button id="quick-race-btn" class="btn btn-secondary"><span>Quick Race</span></button>
+                    <button id="start-btn" class="btn btn-primary"><span>Start Game</span></button>
+                    <button onclick="openSettings()" class="btn btn-secondary"><span>Settings</span></button>
+                    <button onclick="window.close()" class="btn btn-secondary"><span>Quit</span></button>
                 </div>
             </div>
-            <button id="reset-career-btn" class="btn btn-secondary btn-small" style="position:absolute; bottom:1.5rem; right:1.5rem; background:#374151;"><span>Wipe Career</span></button>
         </div>
 
-        <!-- Career Choice -->
+        <!-- Start Choice (Online/Offline) -->
+        <div id="start-choice-screen" class="screen">
+            <div class="menu-bg"></div>
+            <div class="menu-content">
+                <h1 class="screen-title">Select <span class="accent">Mode</span></h1>
+                <div class="choice-grid">
+                    <div class="choice-card">
+                        <h2>Online</h2>
+                        <p class="text-muted">Race against players worldwide.</p>
+                        <button id="mode-online-btn" class="btn btn-accent"><span>Go Online</span></button>
+                    </div>
+                    <div class="choice-card">
+                        <h2>Offline</h2>
+                        <p class="text-muted">Classic career and quick races.</p>
+                        <button id="mode-offline-btn" class="btn btn-primary"><span>Stay Offline</span></button>
+                    </div>
+                </div>
+                <button onclick="showScreen(screens.menu)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+            </div>
+        </div>
+
+        <!-- Online Lobby -->
+        <div id="online-lobby-screen" class="screen">
+            <header class="screen-header"><h1>Multiplayer <span class="accent">Lobby</span></h1></header>
+            <div class="lobby-container">
+                <div id="lobby-setup" class="panel">
+                    <div class="form-group">
+                        <label>Display Name</label>
+                        <input type="text" id="lobby-name-input" placeholder="Your Name" maxlength="15">
+                    </div>
+                    <div class="lobby-actions">
+                        <button id="create-party-btn" class="btn btn-primary"><span>Create Party</span></button>
+                        <div class="join-group">
+                            <input type="text" id="join-id-input" placeholder="Party ID">
+                            <button id="join-party-btn" class="btn btn-secondary"><span>Join</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div id="lobby-active" class="panel hidden">
+                    <h3>Party: <span id="party-id-display" class="accent">---</span></h3>
+                    <div id="player-list" class="player-list"></div>
+                    <div class="lobby-footer">
+                        <button id="leave-party-btn" class="btn btn-secondary"><span>Leave</span></button>
+                        <button id="start-multi-btn" class="btn btn-primary hidden"><span>Start Race</span></button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="showScreen(screens.startChoice)" class="btn btn-secondary btn-small" style="margin-top:1rem"><span>Back</span></button>
+        </div>
+
+        <!-- Offline Landing (Career/Quick Race) -->
+        <div id="offline-landing-screen" class="screen">
+            <div class="menu-bg"></div>
+            <div class="menu-content">
+                <h1 class="screen-title">Offline <span class="accent">Racing</span></h1>
+                <div class="choice-grid">
+                    <div class="choice-card">
+                        <h2>Career Mode</h2>
+                        <p class="text-muted">Your legacy starts here.</p>
+                        <button id="offline-career-btn" class="btn btn-primary"><span>Continue</span></button>
+                    </div>
+                    <div class="choice-card">
+                        <h2>Quick Race</h2>
+                        <p class="text-muted">Random driver, random track.</p>
+                        <button id="quick-race-btn" class="btn btn-secondary"><span>Instant Start</span></button>
+                    </div>
+                </div>
+                <button onclick="showScreen(screens.startChoice)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+            </div>
+        </div>
+
+        <!-- Career Type Choice -->
+        <div id="career-type-screen" class="screen">
+            <div class="menu-bg"></div>
+            <div class="menu-content">
+                <h1 class="screen-title">Career <span class="accent">Type</span></h1>
+                <div class="choice-grid">
+                    <div class="choice-card">
+                        <h2>Player Career</h2>
+                        <p class="text-muted">Focus on driver skills, XP, and climbing the team ladder.</p>
+                        <button id="type-player-btn" class="btn btn-primary"><span>Select</span></button>
+                    </div>
+                    <div class="choice-card">
+                        <h2>Championship</h2>
+                        <p class="text-muted">Manage the team, two drivers, and car development.</p>
+                        <button id="type-champ-btn" class="btn btn-accent"><span>Select</span></button>
+                    </div>
+                </div>
+                <button onclick="showScreen(screens.offlineLanding)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+            </div>
+        </div>
+
+        <!-- Career Choice (Real/Custom) -->
         <div id="career-choice-screen" class="screen">
             <div class="menu-bg"></div>
             <div class="menu-content">
-                <h1 class="screen-title">Choose Your <span class="accent">Path</span></h1>
+                <h1 class="screen-title">Setup <span class="accent">Team</span></h1>
                 <div class="choice-grid">
                     <div class="choice-card">
-                        <h2>Driver Career</h2>
-                        <p class="text-muted">Pick a real driver and race through the 2026 season.</p>
+                        <h2>Real Teams</h2>
+                        <p class="text-muted">Pick a driver from the official 2026 grid.</p>
                         <button id="career-real-btn" class="btn btn-primary"><span>Real Roster</span></button>
                     </div>
                     <div class="choice-card">
-                        <h2>Create Your Team</h2>
-                        <p class="text-muted">Build your own team from scratch and fight for glory.</p>
-                        <button id="career-custom-btn" class="btn btn-accent"><span>Create Team</span></button>
+                        <h2>Custom Team</h2>
+                        <p class="text-muted">Enter as the 11th team on the grid.</p>
+                        <button id="career-custom-btn" class="btn btn-accent"><span>Create Custom</span></button>
                     </div>
                 </div>
-                <button id="back-choice-btn" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+                <button onclick="showScreen(screens.typeChoice)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
             </div>
         </div>
-
+        
+        <!-- [EXISTING SCREENS CONTINUED...] -->
         <!-- Create Team -->
         <div id="create-team-screen" class="screen">
             <header class="screen-header"><h1>Create Your <span class="accent">Team</span></h1></header>
@@ -156,6 +249,7 @@
             <div id="modal-content" class="modal-box"></div>
         </div>
     </div>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="data.js"></script>
     <script src="game.js"></script>
 </body>
