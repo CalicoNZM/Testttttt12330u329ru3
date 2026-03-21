@@ -29,6 +29,7 @@ const hud = { pos:$('hud-pos'), lap:$('hud-lap'), time:$('hud-time'), speed:$('h
 const modal = { overlay:$('modal-overlay'), content:$('modal-content') };
 
 let net = { peer:null, conn:null, isHost:false, players:[], myId:null, myName:'Driver' };
+let joystick = { active: false, startX: 0, currentX: 0, value: 0 };
 
 function showScreen(s) { Object.values(screens).forEach(el => el.classList.remove('active')); s.classList.add('active'); }
 function showModal(html) { modal.content.innerHTML = html; modal.overlay.classList.remove('hidden'); }
@@ -139,6 +140,8 @@ function initNewGame(selectedId, drivers) {
     drivers.forEach(dr => game.standings[dr.id] = 0);
     save(); showScreen(screens.hub); renderHub();
 }
+
+function renderSelection() { renderDriverGrid(); }
 
 function renderHub() {
     const drivers = getDrivers();
@@ -524,8 +527,11 @@ function updateCar(car, ts) {
         const k=race.keys, s=userSettings.keys;
         if(k[s.gas]||k['ArrowUp']||k['w']) throttle=1;
         if(k[s.brake]||k['ArrowDown']||k['s']) brake=1;
-        if(k[s.left]||k['ArrowLeft']||k['a']) steerInput=-1;
-        if(k[s.right]||k['ArrowRight']||k['d']) steerInput=1;
+        if(k['steering'] !== undefined) steerInput = k['steering'];
+        else {
+            if(k[s.left]||k['ArrowLeft']||k['a']) steerInput=-1;
+            if(k[s.right]||k['ArrowRight']||k['d']) steerInput=1;
+        }
     } else {
         if(car.damage > 0.45 && race.laps - car.lap > 1 && !car.isPittingNextLap) car.isPittingNextLap = true;
         // AI with adaptive lookahead
@@ -703,21 +709,12 @@ function quickRace() {
 
 // --- INIT ---
 function init() {
-    $('career-mode-btn').onclick = () => {
-        const saved=localStorage.getItem('uformula2026v2');
-        if(saved){game=JSON.parse(saved);showScreen(screens.hub);renderHub();}
-        else showScreen(screens.choice);
-    };
-    $('quick-race-btn').onclick = quickRace;
-    $('career-real-btn').onclick = () => { showScreen(screens.selection); renderDriverGrid(); };
-    $('career-custom-btn').onclick = () => { showScreen(screens.create); setupCreateTeam(); };
-    $('back-choice-btn').onclick = () => showScreen(screens.menu);
     // V6 Screen Transitions
     $('start-btn').onclick = () => showScreen(screens.startChoice);
     $('mode-offline-btn').onclick = () => showScreen(screens.offlineLanding);
     $('mode-online-btn').onclick = initMultiplayer;
     $('offline-career-btn').onclick = () => {
-        if(load()) showScreen(screens.hub);
+        if(load()) { showScreen(screens.hub); renderHub(); }
         else showScreen(screens.typeChoice);
     };
     $('type-player-btn').onclick = () => { game.careerMode='player'; showScreen(screens.choice); };
@@ -730,7 +727,7 @@ function init() {
     $('start-multi-btn').onclick = startMultiplayerRace;
 
     $('career-real-btn').onclick = () => { game.customTeam=false; renderSelection(); showScreen(screens.selection); };
-    $('career-custom-btn').onclick = () => { game.customTeam=true; showScreen(screens.create); };
+    $('career-custom-btn').onclick = () => { game.customTeam=true; showScreen(screens.create); setupCreateTeam(); };
     $('back-choice-btn').onclick = () => showScreen(screens.typeChoice);
     $('back-select-btn').onclick = () => showScreen(screens.choice);
     $('back-create-btn').onclick = () => showScreen(screens.choice);
@@ -768,10 +765,44 @@ function init() {
             race.keys[e.key.toLowerCase()] = false;
         }
     });
-    const bind=(el,key)=>{if(!el)return;el.addEventListener('touchstart',e=>{e.preventDefault();if(race.keys)race.keys[userSettings.keys[key]||key]=true;},{passive:false});el.addEventListener('touchend',e=>{e.preventDefault();if(race.keys)race.keys[userSettings.keys[key]||key]=false;},{passive:false});};
-    bind($('touch-gas'),'gas');bind($('touch-brake'),'brake');bind($('touch-left'),'left');bind($('touch-right'),'right');
-    $('ovr-btn').addEventListener('mousedown',()=>{if(race.keys)race.keys[userSettings.keys['ovr']||' ']=true;});
-    $('ovr-btn').addEventListener('mouseup',()=>{if(race.keys)race.keys[userSettings.keys['ovr']||' ']=false;});
+    // Mobile Joystick & Buttons
+    const jBase = $('joystick-base'), jKnob = $('joystick-knob');
+    if(jBase) {
+        jBase.addEventListener('touchstart', e => {
+            joystick.active = true;
+            joystick.startX = e.touches[0].clientX;
+            e.preventDefault();
+        }, {passive:false});
+        window.addEventListener('touchmove', e => {
+            if(!joystick.active) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - joystick.startX;
+            const max = 60;
+            joystick.value = Math.max(-1, Math.min(1, dx / max));
+            jKnob.style.transform = `translate(calc(-50% + ${joystick.value * max}px), -50%)`;
+            if(race.keys) race.keys['steering'] = joystick.value;
+        }, {passive:false});
+        window.addEventListener('touchend', () => {
+            joystick.active = false;
+            joystick.value = 0;
+            jKnob.style.transform = `translate(-50%, -50%)`;
+            if(race.keys) delete race.keys['steering'];
+        });
+    }
+
+    const mBind = (id, key) => {
+        const el = $(id);
+        if(!el) return;
+        el.addEventListener('touchstart', e => { e.preventDefault(); if(race.keys) race.keys[userSettings.keys[key]||key] = true; }, {passive:false});
+        el.addEventListener('touchend', e => { e.preventDefault(); if(race.keys) race.keys[userSettings.keys[key]||key] = false; }, {passive:false});
+    };
+    mBind('touch-gas', 'gas');
+    mBind('touch-brake', 'brake');
+
+    $('ovr-btn').addEventListener('touchstart', e => { e.preventDefault(); if(race.keys) race.keys[userSettings.keys['ovr']||' '] = true; }, {passive:false});
+    $('ovr-btn').addEventListener('touchend', e => { e.preventDefault(); if(race.keys) race.keys[userSettings.keys['ovr']||' '] = false; }, {passive:false});
+    $('ovr-btn').addEventListener('mousedown', () => { if(race.keys) race.keys[userSettings.keys['ovr']||' '] = true; });
+    $('ovr-btn').addEventListener('mouseup', () => { if(race.keys) race.keys[userSettings.keys['ovr']||' '] = false; });
     
     if($('pit-btn')) $('pit-btn').onclick = () => {
         if(race.running && race.player && !race.player.isPitting && race.phase !== 'quali') {

@@ -107,13 +107,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 #damage-bar { height: 100%; background: var(--green); width: 100%; transition: width 0.3s, background 0.3s; }
 .damage-label { font-size: 0.55rem; color: var(--muted); }
 /* Touch */
-#touch-controls { display: none; position: absolute; bottom: 0.5rem; left: 0.5rem; right: 0.5rem; justify-content: space-between; align-items: flex-end; pointer-events: none; }
-@media (hover: none) and (pointer: coarse) { #touch-controls { display: flex; } }
+#touch-controls { display: none; position: absolute; inset: 0; z-index: 100; pointer-events: none; }
+@media (hover: none) and (pointer: coarse), (max-width: 900px) { #touch-controls { display: flex; } }
 body.show-touch #touch-controls { display: flex; }
-.touch-btn { pointer-events: auto; border: 2px solid rgba(200,200,200,0.4); background: rgba(30,30,30,0.5); color: #fff; font-weight: 700; border-radius: 50%; width: 70px; height: 70px; font-size: 0.9rem; -webkit-user-select: none; user-select: none; }
-.touch-btn:active { background: rgba(80,80,80,0.7); }
-.touch-gas { width: 80px; height: 80px; }
-.touch-left-group, .touch-right-group { display: flex; gap: 0.5rem; align-items: flex-end; }
+
+.touch-left-side, .touch-right-side { position: absolute; bottom: 2rem; display: flex; align-items: flex-end; pointer-events: none; }
+.touch-left-side { left: 2rem; gap: 1rem; }
+.touch-right-side { right: 2rem; }
+
+.mobile-btn-rect { pointer-events: auto; width: 100px; height: 100px; border-radius: 1.5rem; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15); color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.9rem; backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: all 0.1s; -webkit-tap-highlight-color: transparent; }
+.mobile-btn-rect.main { background: rgba(225,6,0,0.2); border-color: rgba(225,6,0,0.4); }
+.mobile-btn-rect:active { transform: scale(0.92); background: rgba(255,255,255,0.2); }
+.mobile-btn-rect.main:active { background: rgba(225,6,0,0.5); }
+
+#joystick-container { position: relative; width: 160px; height: 160px; pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+#joystick-base { width: 140px; height: 140px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; position: relative; backdrop-filter: blur(10px); }
+#joystick-knob { width: 60px; height: 60px; background: #fff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: transform 0.05s linear; }
 /* Modal */
 .modal-overlay { position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
 .modal-overlay.hidden { display: none; }
