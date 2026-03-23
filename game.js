@@ -3,13 +3,18 @@
 // =============================================================================
 
 let game = {}, race = {}, particles = [];
-let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', ovr:' ' } };
-try { const s = localStorage.getItem('uformula_settings'); if(s) userSettings = JSON.parse(s); } catch(e){}
+let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', ovr:' ' }, use3D: false, useSepang: false };
+try { const s = localStorage.getItem('uformula_settings'); if(s) { const parsed=JSON.parse(s); userSettings={...userSettings, ...parsed}; } } catch(e){}
 
 function formatTime(ms) {
     if(!ms) return "--:--.---";
     const min = Math.floor(ms/60000), sec = Math.floor((ms%60000)/1000), milli = Math.floor(ms%1000);
     return min + ':' + sec.toString().padStart(2,'0') + '.' + milli.toString().padStart(3,'0');
+}
+
+function getCalendar() {
+    if(userSettings.useSepang) return [...CALENDAR, { id:'sepang', name:'Malaysian GP', city:'Kuala Lumpur', laps:3, baseLap: 90000 }];
+    return CALENDAR;
 }
 
 const $ = id => document.getElementById(id);
@@ -149,9 +154,10 @@ function renderHub() {
     if (!d) return;
     const stats = getPlayerStats(d);
     const round = game.round || 0;
-    const race = CALENDAR[Math.min(round, CALENDAR.length-1)];
+    const cal = getCalendar();
+    const race = cal[Math.min(round, cal.length-1)];
     $('currency-display').textContent = `$${game.currency.toLocaleString()}`;
-    $('season-info').textContent = `Round ${round+1} of ${CALENDAR.length} — ${race.city}`;
+    $('season-info').textContent = `Round ${round+1} of ${cal.length} — ${race.city}`;
     
     // Hub Panels
     $('hub-driver-panel').innerHTML = `
@@ -307,6 +313,7 @@ function setupCanvas() {
     const ratio=16/9; let cw=w,ch=cw/ratio;
     if(ch>h){ch=h;cw=ch*ratio;}
     canvas.width=cw; canvas.height=ch; canvas.style.marginTop=hudH+'px';
+    if(window.resize3D) window.resize3D(cw, ch, hudH);
 }
 
 function openSettings() {
@@ -315,12 +322,27 @@ function openSettings() {
     for(const [act, key] of Object.entries(userSettings.keys)) {
         html += `<div class="settings-row"><span style="text-transform:uppercase">${act}</span><kbd id="bind-${act}" onclick="rebindKey('${act}')">${key===' '?'SPACE':key}</kbd></div>`;
     }
-    html += `</div><div class="modal-buttons" style="flex-direction:column; gap:0.5rem">
+    html += `</div>
+        <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.5rem">
+            <label style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:0.5rem; border-radius:0.5rem;">
+                <span style="font-size:0.9rem">Enable 3D Racing</span>
+                <input type="checkbox" id="toggle-3d" ${userSettings.use3D ? 'checked' : ''} onchange="toggleSetting('use3D', this.checked)">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:0.5rem; border-radius:0.5rem;">
+                <span style="font-size:0.9rem">Add Sepang to Season</span>
+                <input type="checkbox" id="toggle-sepang" ${userSettings.useSepang ? 'checked' : ''} onchange="toggleSetting('useSepang', this.checked)">
+            </label>
+        </div>
+        <div class="modal-buttons" style="flex-direction:column; gap:0.5rem">
             <button class="btn btn-primary" style="width:100%" onclick="closeSettings()"><span>Resume</span></button>
             <button class="btn btn-secondary btn-small" style="width:100%; opacity:0.6" onclick="resetCareer()"><span>Wipe Career Data</span></button>
         </div>`;
     showModal(html);
 }
+window.toggleSetting = (key, val) => {
+    userSettings[key] = val;
+    localStorage.setItem('uformula_settings', JSON.stringify(userSettings));
+};
 window.resetCareer = () => { if(confirm("Permanently wipe all career data?")) { localStorage.removeItem('uformula2026v2'); location.reload(); } };
 function closeSettings() {
     hideModal();
@@ -335,12 +357,13 @@ window.closeSettings = closeSettings;
 
 async function startRaceWeekend() {
     const round = game.round||0;
-    if (round >= CALENDAR.length) {
+    const calList = getCalendar();
+    if (round >= calList.length) {
         showModal(`<h2>Season Complete!</h2><p style="text-align:center;margin:1rem 0">Congratulations on completing the 2026 season!</p><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();showScreen(screens.hub)"><span>View Standings</span></button></div>`);
         window.showScreen = showScreen; return;
     }
-    const cal = CALENDAR[round];
-    showModal(`<h2>${cal.name}</h2><p style="text-align:center" class="text-muted">${cal.city} — Round ${round+1} of ${CALENDAR.length}</p><p style="text-align:center;margin:1rem 0;font-weight:bold;color:var(--blue)">Free Practice 1 (FP1)</p><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runSession('${cal.id}','practice',2)"><span>Start FP1</span></button><button class="btn btn-secondary" onclick="hideModal();runSession('${cal.id}','quali',1)"><span>Skip Practice</span></button></div>`);
+    const cal = calList[round];
+    showModal(`<h2>${cal.name}</h2><p style="text-align:center" class="text-muted">${cal.city} — Round ${round+1} of ${calList.length}</p><p style="text-align:center;margin:1rem 0;font-weight:bold;color:var(--blue)">Free Practice 1 (FP1)</p><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runSession('${cal.id}','practice',2)"><span>Start FP1</span></button><button class="btn btn-secondary" onclick="hideModal();runSession('${cal.id}','quali',1)"><span>Skip Practice</span></button></div>`);
     window.runSession = runSession;
 }
 
@@ -382,6 +405,8 @@ async function runSession(trackId, phase, laps, grid=null) {
         }
     }
 
+    if(window.init3D) window.init3D(race, canvas.width, canvas.height, $('race-hud').offsetHeight);
+
     particles=[];
     hud.prompt.textContent = phase==='race'?'RACE START':phase.toUpperCase(); await sleep(1500);
     hud.prompt.textContent='3'; await sleep(800);
@@ -420,7 +445,7 @@ function finishPractice() {
 function finishQualifying() {
     race.running = false;
     const drivers = getDrivers();
-    const trackBase = CALENDAR[game.round||0].baseLap || 80000;
+    const trackBase = getCalendar()[game.round||0].baseLap || 80000;
     const pTime = performance.now() - race.startTime;
     
     const grid = drivers.map(d => {
@@ -433,7 +458,7 @@ function finishQualifying() {
     let html = `<h2>Qualifying Results</h2><div class="results-list">`;
     grid.forEach((g,i)=>{ const d=drivers.find(dr=>dr.id===g.id); html+=`<p class="${g.id===game.selectedId?'highlight':''}">${i+1}. ${d.name} <span style="float:right;color:var(--muted)">${formatTime(g.time)}</span></p>`; });
     html += `</div><p style="text-align:center;font-size:1.1rem;margin-top:1rem;color:var(--green)">You qualified P${pPos}!</p>`;
-    const raceLaps = CALENDAR[game.round||0].laps;
+    const raceLaps = getCalendar()[game.round||0].laps;
     html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();runSession('${race.trackId}','race',${raceLaps},qualiGrid)"><span>To Grid</span></button></div>`;
     window.qualiGrid = grid;
     showModal(html);
@@ -666,6 +691,18 @@ function checkLap(car,ts) {
 
 // --- RENDERING ---
 function render() {
+    if(userSettings.use3D && window.render3D) { 
+        $('race-canvas').style.display='none'; 
+        window.render3D(race); 
+        // We still need to draw minimap
+        drawMinimap();
+        return; 
+    }
+    else { 
+        $('race-canvas').style.display='block'; 
+        if(window.hide3D) window.hide3D(); 
+    }
+
     const canvas=$('race-canvas'), ctx=canvas.getContext('2d');
     const cam=race.camera, target=race.player;
     cam.x+=((target.x-canvas.width/2)-cam.x)*.06; // Smoother camera!
@@ -691,8 +728,12 @@ function render() {
     // Speed lines
     if(race.player.speed>race.player.topSpeed*.7){const int=(race.player.speed-race.player.topSpeed*.7)/(race.player.topSpeed*.3);ctx.strokeStyle=`rgba(255,255,255,${int*.12})`;ctx.lineWidth=1;for(let i=0;i<6;i++){const ox=race.player.x+(Math.random()-.5)*45,oy=race.player.y+(Math.random()-.5)*45;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox-Math.cos(race.player.angle)*25,oy-Math.sin(race.player.angle)*25);ctx.stroke();}}
     ctx.restore();
-    // Minimap
+    drawMinimap();
+}
+
+function drawMinimap() {
     const mc=$('minimap-canvas').getContext('2d'),mw=220,mh=140;
+    const canvas=$('race-canvas');
     const vw=race.virtualW||canvas.width,vh=race.virtualH||canvas.height;
     const sc=Math.min(mw/vw,mh/vh)*.92;
     mc.clearRect(0,0,mw,mh);
@@ -728,7 +769,6 @@ function init() {
 
     $('career-real-btn').onclick = () => { game.customTeam=false; renderSelection(); showScreen(screens.selection); };
     $('career-custom-btn').onclick = () => { game.customTeam=true; showScreen(screens.create); setupCreateTeam(); };
-    $('back-choice-btn').onclick = () => showScreen(screens.typeChoice);
     $('back-select-btn').onclick = () => showScreen(screens.choice);
     $('back-create-btn').onclick = () => showScreen(screens.choice);
     $('confirm-create-btn').onclick = confirmCreateTeam;
@@ -867,7 +907,8 @@ function startMultiplayerRace() { /* Host starts */ }
 function startQuickRace() {
     game.careerMode = 'quick';
     const d = DRIVERS[Math.floor(Math.random()*DRIVERS.length)];
-    const t = CALENDAR[Math.floor(Math.random()*CALENDAR.length)];
+    const calList = getCalendar();
+    const t = calList[Math.floor(Math.random()*calList.length)];
     initNewGame(d.id, JSON.parse(JSON.stringify(DRIVERS)));
     race.track = t;
     startRaceWeekend();
