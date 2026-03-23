@@ -211,37 +211,38 @@
             <canvas id="race-canvas"></canvas>
             <canvas id="minimap-canvas" width="220" height="140"></canvas>
             <div id="race-hud">
-                <div class="hud-left">
-                    <p>POS <span id="hud-pos" class="hud-big">--/22</span></p>
-                    <p>LAP <span id="hud-lap" class="hud-big">0/3</span></p>
-                    <div id="damage-bar-container"><div id="damage-bar"></div></div>
-                    <p class="damage-label">DMG</p>
+                <div class="hud-box angled" style="align-items:flex-start">
+                    <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                        <div>POS <span class="hud-big" style="color:var(--text)" id="hud-pos">P1</span></div>
+                        <div id="hud-lap" style="font-weight:900; color:var(--accent)">LAP 1/3</div>
+                        <div id="damage-bar-container" style="border:2px solid #fff; background:#000; height:12px; margin-top:6px; box-shadow: 2px 2px 0px var(--accent); width:80px;"><div id="damage-bar"></div></div>
+                        <div class="damage-label" style="font-family:'Orbitron',sans-serif; margin-top:2px;">HEALTH</div>
+                    </div>
                 </div>
                 <div class="hud-center">
-                    <div id="race-prompt"></div>
-                    <div id="flag-indicator"></div>
-                    <button id="ovr-btn" class="hud-action-btn">OVR</button>
-                    <button id="pit-btn" class="hud-action-btn hidden">BOX</button>
+                    <div id="race-prompt" class="accent"></div>
+                    <div id="flag-indicator" class="hud-box angled" style="background:var(--green); color:#000; box-shadow:none; padding:0.2rem 1rem;"><span>YELLOW FLAG</span></div>
+                    <button id="ovr-btn" class="hud-action-btn"><span>OVR</span></button>
+                    <button id="pit-btn" class="hud-action-btn hidden"><span>BOX</span></button>
                 </div>
-                <div class="hud-right">
+                <div class="hud-box angled" style="align-items:flex-end">
                     <div style="display:flex; justify-content:flex-end; gap:10px; align-items:center; margin-bottom: 4px;">
-                        <button id="settings-btn" class="btn btn-small btn-secondary" style="padding: 0.2rem 0.6rem;">⚙</button>
+                        <button id="settings-btn" class="btn btn-small btn-secondary" style="padding: 0.2rem 0.6rem;"><span>⚙</span></button>
                     </div>
-                    <p>TIME <span id="hud-time" class="hud-big">00:00.0</span></p>
-                    <p style="color:var(--accent); font-weight:bold; font-size:0.8rem; height: 1.2rem;" id="hud-penalties"></p>
-                    <p>SPEED <span id="hud-speed" class="hud-big">0</span> kph</p>
+                    <div>TIME <span class="hud-big" id="hud-time">0:00.000</span></div>
+                    <div style="color:var(--accent); font-weight:bold; font-size:0.8rem; height: 1.2rem;" id="hud-penalties"></div>
+                    <div>SPEED <span id="hud-speed" class="hud-big">0</span></div>
                 </div>
             </div>
             <div id="touch-controls">
                 <div class="touch-left-side">
-                    <button id="touch-brake" class="mobile-btn-rect">BRAKE</button>
+                    <button id="touch-brake" class="mobile-btn-rect">BRK</button>
                     <button id="touch-gas" class="mobile-btn-rect main">GAS</button>
                 </div>
                 <div class="touch-right-side">
-                    <div id="joystick-container">
-                        <div id="joystick-base">
-                            <div id="joystick-knob"></div>
-                        </div>
+                    <div id="steering-slider-container">
+                        <div id="steering-slider-track"></div>
+                        <div id="steering-slider-knob"></div>
                     </div>
                 </div>
             </div>
@@ -255,6 +256,7 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="data.js"></script>
+    <script src="multiplayer.js"></script>
     <script src="game.js"></script>
     <script src="3d.js"></script>
 </body>

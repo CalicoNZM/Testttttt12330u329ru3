@@ -419,14 +419,23 @@ async function runSession(trackId, phase, laps, grid=null) {
 }
 
 function gameLoop(ts) {
-    if(!race.running || race.isPaused) return;
-    race.lastTime = ts;
-    update(ts); render();
-    if(race.player.lap > race.laps) { 
-        if(race.phase==='practice') finishPractice();
-        else if(race.phase==='quali') finishQualifying(); 
-        else finishRace(); 
-        return; 
+    if(!race.running) return;
+    if(!race.isPaused) {
+        updateCar(race.player, ts);
+        race.ai.forEach(c => updateCar(c, ts));
+        
+        if(window.syncMultiplayerOutbound) syncMultiplayerOutbound();
+
+        race.time = performance.now() - race.startTime;
+        hud.time.textContent = formatTime(race.time);
+        hud.speed.textContent = Math.round(race.player.speed * 60) + ' KPH';
+        
+        if(race.player.lap > race.laps) { 
+            if(race.phase==='practice') finishPractice();
+            else if(race.phase==='quali') finishQualifying(); 
+            else finishRace(); 
+            return; 
+        }
     }
     requestAnimationFrame(gameLoop);
 }
@@ -522,6 +531,7 @@ function update(ts) {
 
 function updateCar(car, ts) {
     if(car.dnf) { car.speed = 0; return; }
+    if(car.isMultiplayerOpponent) return;
     car.lastPos={x:car.x,y:car.y};
     
     if(car.isPitting) {
@@ -805,27 +815,22 @@ function init() {
             race.keys[e.key.toLowerCase()] = false;
         }
     });
-    // Mobile Joystick & Buttons
-    const jBase = $('joystick-base'), jKnob = $('joystick-knob');
-    if(jBase) {
-        jBase.addEventListener('touchstart', e => {
-            joystick.active = true;
-            joystick.startX = e.touches[0].clientX;
-            e.preventDefault();
-        }, {passive:false});
-        window.addEventListener('touchmove', e => {
-            if(!joystick.active) return;
+    // Mobile Slider & Buttons
+    const sliderContainer = $('steering-slider-container'), sKnob = $('steering-slider-knob');
+    if(sliderContainer && sKnob) {
+        let maxTravel = 80; // (220 width - 44 knob)/2 roughly = ~88. We'll use 80 for padding
+        const handleSlide = (e) => {
+            const rect = sliderContainer.getBoundingClientRect();
             const touch = e.touches[0];
-            const dx = touch.clientX - joystick.startX;
-            const max = 60;
-            joystick.value = Math.max(-1, Math.min(1, dx / max));
-            jKnob.style.transform = `translate(calc(-50% + ${joystick.value * max}px), -50%)`;
-            if(race.keys) race.keys['steering'] = joystick.value;
-        }, {passive:false});
-        window.addEventListener('touchend', () => {
-            joystick.active = false;
-            joystick.value = 0;
-            jKnob.style.transform = `translate(-50%, -50%)`;
+            let rawX = touch.clientX - rect.left - rect.width/2;
+            let val = Math.max(-1, Math.min(1, rawX / maxTravel));
+            sKnob.style.left = `calc(50% + ${val * maxTravel}px)`;
+            if(race.keys) race.keys['steering'] = val;
+        };
+        sliderContainer.addEventListener('touchstart', e => { e.preventDefault(); handleSlide(e); }, {passive:false});
+        sliderContainer.addEventListener('touchmove', e => { e.preventDefault(); handleSlide(e); }, {passive:false});
+        window.addEventListener('touchend', e => {
+            sKnob.style.left = '50%';
             if(race.keys) delete race.keys['steering'];
         });
     }
@@ -856,53 +861,7 @@ function init() {
     showScreen(screens.menu);
 }
 
-// --- V6 NETWORK LOGIC ---
-function initMultiplayer() {
-    if(!window.Peer) { alert("PeerJS not loaded!"); return; }
-    showScreen(screens.onlineLobby);
-    if(net.peer) return;
-    net.peer = new Peer();
-    net.peer.on('open', id => { net.myId = id; console.log("My Peer ID:", id); });
-    net.peer.on('connection', conn => {
-        if(!net.isHost) return;
-        setupConn(conn);
-    });
-}
-function createParty() {
-    net.isHost = true;
-    net.myName = $('lobby-name-input').value || 'Host';
-    $('lobby-setup').classList.add('hidden');
-    $('lobby-active').classList.remove('hidden');
-    $('party-id-display').textContent = net.myId || 'Connecting...';
-    $('start-multi-btn').classList.remove('hidden');
-    updatePlayerList([{name:net.myName, id:net.myId}]);
-}
-function joinParty(id) {
-    if(!id) return;
-    net.myName = $('lobby-name-input').value || 'Guest';
-    const conn = net.peer.connect(id);
-    setupConn(conn);
-    $('lobby-setup').classList.add('hidden');
-    $('lobby-active').classList.remove('hidden');
-    $('party-id-display').textContent = id;
-}
-function setupConn(conn) {
-    net.conn = conn;
-    conn.on('open', () => {
-        conn.send({type:'join', name:net.myName});
-    });
-    conn.on('data', data => {
-        if(data.type === 'list') updatePlayerList(data.players);
-        if(data.type === 'start') { /* Launch Race */ }
-    });
-}
-function leaveParty() { location.reload(); }
-function updatePlayerList(players) {
-    net.players = players;
-    const list = $('player-list');
-    list.innerHTML = players.map(p => `<div class="player-item ${p.id===net.myId?'is-me':''}">${p.name}</div>`).join('');
-}
-function startMultiplayerRace() { /* Host starts */ }
+
 
 function startQuickRace() {
     game.careerMode = 'quick';
