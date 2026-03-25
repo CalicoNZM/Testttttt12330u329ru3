@@ -3,7 +3,7 @@
 // =============================================================================
 
 let game = {}, race = {}, particles = [];
-let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', ovr:' ' }, use3D: false, useSepang: false };
+let userSettings = { keys: { gas:'ArrowUp', brake:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', ovr:' ' }, use3D: false, useSepang: false, difficulty:'medium', sound:true, cameraZoom:1, showFPS:false };
 try { const s = localStorage.getItem('uformula_settings'); if(s) { const parsed=JSON.parse(s); userSettings={...userSettings, ...parsed}; } } catch(e){}
 
 function formatTime(ms) {
@@ -180,6 +180,7 @@ function renderHub() {
                 <div style="display:flex; flex-direction:column; gap:0.5rem">
                     ${game.teamDrivers.map((td,i) => `<button class="btn ${game.selectedId===td.id?'btn-primary':'btn-secondary'} btn-small" onclick="pickChampDriver(${i})"><span>${td.name}</span></button>`).join('')}
                 </div>
+                <button class="btn btn-green btn-small" style="width:100%; margin-top:1rem" onclick="showPromoteF2()"><span>↑ Promote F2 Driver</span></button>
             ` : `
                 <p class="text-muted">Season Objective: Championship Win</p>
                 <button class="btn btn-secondary btn-small" style="width:100%; margin-top:1rem" onclick="checkContracts()"><span>Check Contracts</span></button>
@@ -324,13 +325,29 @@ function openSettings() {
     }
     html += `</div>
         <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.5rem">
-            <label style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:0.5rem; border-radius:0.5rem;">
-                <span style="font-size:0.9rem">Enable 3D Racing</span>
+            <label style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #fff">
+                <span style="font-size:0.9rem; font-weight:900">ENABLE 3D RACING</span>
                 <input type="checkbox" id="toggle-3d" ${userSettings.use3D ? 'checked' : ''} onchange="toggleSetting('use3D', this.checked)">
             </label>
-            <label style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:0.5rem; border-radius:0.5rem;">
-                <span style="font-size:0.9rem">Add Sepang to Season</span>
-                <input type="checkbox" id="toggle-sepang" ${userSettings.useSepang ? 'checked' : ''} onchange="toggleSetting('useSepang', this.checked)">
+            <label style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #fff">
+                <span style="font-size:0.9rem; font-weight:900">DIFFICULTY</span>
+                <select style="background:#000; color:#fff; border:2px solid #fff; padding:0.3rem 0.5rem; font-family:'Orbitron',sans-serif; font-size:0.75rem" onchange="toggleSetting('difficulty', this.value)">
+                    <option value="easy" ${userSettings.difficulty==='easy'?'selected':''}>EASY</option>
+                    <option value="medium" ${userSettings.difficulty==='medium'?'selected':''}>MEDIUM</option>
+                    <option value="hard" ${userSettings.difficulty==='hard'?'selected':''}>HARD</option>
+                </select>
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #fff">
+                <span style="font-size:0.9rem; font-weight:900">SOUND</span>
+                <input type="checkbox" ${userSettings.sound ? 'checked' : ''} onchange="toggleSetting('sound', this.checked)">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #fff">
+                <span style="font-size:0.9rem; font-weight:900">CAM ZOOM</span>
+                <input type="range" min="0.6" max="1.5" step="0.1" value="${userSettings.cameraZoom}" style="width:100px" onchange="toggleSetting('cameraZoom', parseFloat(this.value))">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #fff">
+                <span style="font-size:0.9rem; font-weight:900">SHOW FPS</span>
+                <input type="checkbox" ${userSettings.showFPS ? 'checked' : ''} onchange="toggleSetting('showFPS', this.checked)">
             </label>
         </div>
         <div class="modal-buttons" style="flex-direction:column; gap:0.5rem">
@@ -421,15 +438,10 @@ async function runSession(trackId, phase, laps, grid=null) {
 function gameLoop(ts) {
     if(!race.running) return;
     if(!race.isPaused) {
-        updateCar(race.player, ts);
-        race.ai.forEach(c => updateCar(c, ts));
-        
+        race.lastTime = ts;
+        update(ts);
+        render();
         if(window.syncMultiplayerOutbound) syncMultiplayerOutbound();
-
-        race.time = performance.now() - race.startTime;
-        hud.time.textContent = formatTime(race.time);
-        hud.speed.textContent = Math.round(race.player.speed * 60) + ' KPH';
-        
         if(race.player.lap > race.laps) { 
             if(race.phase==='practice') finishPractice();
             else if(race.phase==='quali') finishQualifying(); 
@@ -502,7 +514,25 @@ function finishRace() {
         html += `<p class="${c.isPlayer?'highlight':''}">${i+1}. ${c.data.name} ${c.dnf?'(DNF)':''} ${penStr}</p>`; 
     });
     html += `</div><p style="text-align:center;font-size:1.1rem;margin-top:1rem;color:var(--green)">P${pos} | +$${payout.toLocaleString()} | +${pts} pts</p>`;
-    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="game.round++;save();hideModal();showScreen(screens.hub);renderHub()"><span>Return to Hub</span></button></div>`;
+    html += `<div class="modal-buttons"><button class="btn btn-primary" onclick="advanceSeasonFromRace()"><span>Return to Hub</span></button></div>`;
+    window.advanceSeasonFromRace = () => {
+        game.round++;
+        const cal = getCalendar();
+        if(game.round >= cal.length && game.careerMode !== 'quick') {
+            // Season over! Trigger transfers
+            const transfers = simulateTransfers();
+            game.round = 0;
+            Object.keys(game.standings).forEach(k => game.standings[k] = 0);
+            save(); hideModal();
+            let tHtml = `<h2>Season Over — Driver Market</h2><div style="max-height:250px; overflow-y:auto; margin:1rem 0">`;
+            if(transfers && transfers.length > 0) transfers.forEach(t => tHtml += `<p style="padding:0.3rem 0; border-bottom:1px solid #333">${t}</p>`);
+            else tHtml += `<p class="text-muted">No transfers this off-season.</p>`;
+            tHtml += `</div><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();showScreen(screens.hub);renderHub()"><span>Start New Season</span></button></div>`;
+            showModal(tHtml);
+        } else {
+            save(); hideModal(); showScreen(screens.hub); renderHub();
+        }
+    };
     showModal(html);
 }
 
@@ -865,12 +895,165 @@ function init() {
 
 function startQuickRace() {
     game.careerMode = 'quick';
-    const d = DRIVERS[Math.floor(Math.random()*DRIVERS.length)];
+    // Show F1/F2 picker modal
+    showModal(`<h2>Quick Race</h2>
+        <p style="text-align:center;margin:1rem 0" class="text-muted">Pick your series</p>
+        <div class="modal-buttons" style="flex-direction:column; gap:0.75rem">
+            <button class="btn btn-primary" style="width:100%" onclick="hideModal();launchQuickRace('f1')"><span>FORMULA 1</span></button>
+            <button class="btn btn-secondary" style="width:100%" onclick="hideModal();launchQuickRace('f2')"><span>FORMULA 2</span></button>
+        </div>`);
+    window.launchQuickRace = launchQuickRace;
+}
+
+function launchQuickRace(series) {
+    const pool = series === 'f2' ? F2_DRIVERS : DRIVERS;
+    const d = pool[Math.floor(Math.random()*pool.length)];
     const calList = getCalendar();
     const t = calList[Math.floor(Math.random()*calList.length)];
-    initNewGame(d.id, JSON.parse(JSON.stringify(DRIVERS)));
+    game.series = series;
+    initNewGame(d.id, JSON.parse(JSON.stringify(pool)));
     race.track = t;
     startRaceWeekend();
 }
+
+// --- CUSTOM DRIVER CREATION ---
+function showCreateDriver() {
+    showModal(`<h2>Create Your Driver</h2>
+        <div style="display:flex; flex-direction:column; gap:1rem; margin:1rem 0">
+            <div class="form-group"><label>DRIVER NAME</label><input type="text" id="custom-driver-name" placeholder="Enter name..." maxlength="24"></div>
+            <div class="form-group"><label>TEAM</label>
+                <select id="custom-driver-team" style="width:100%; background:#000; color:#fff; border:2px solid #fff; padding:0.8rem; font-family:'Orbitron',sans-serif; font-size:0.8rem">
+                    ${[...new Set(DRIVERS.map(d=>d.team))].map(t=>`<option value="${t}">${t}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" onclick="hideModal()"><span>Cancel</span></button>
+            <button class="btn btn-primary" onclick="confirmCreateDriver()"><span>Create</span></button>
+        </div>`);
+    window.confirmCreateDriver = confirmCreateDriver;
+}
+window.showCreateDriver = showCreateDriver;
+
+function confirmCreateDriver() {
+    const name = $('custom-driver-name').value.trim() || 'Custom Driver';
+    const team = $('custom-driver-team').value;
+    const teamColor = DRIVERS.find(d => d.team === team)?.color || '#FFFFFF';
+    const customId = 'custom_' + Date.now();
+    const customDriver = { id:customId, name, team, color:teamColor, pac:75, rac:75, awa:75, exp:60, ovr:72 };
+    const pool = JSON.parse(JSON.stringify(DRIVERS));
+    pool.push(customDriver);
+    game.series = 'f1';
+    hideModal();
+    initNewGame(customId, pool);
+}
+
+// --- PRE-SEASON SETUP (Sepang toggle lives here now) ---
+function showPreSeasonSetup(callback) {
+    showModal(`<h2>Pre-Season Setup</h2>
+        <div style="display:flex; flex-direction:column; gap:0.75rem; margin:1rem 0">
+            <label style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #fff">
+                <span style="font-size:0.9rem; font-weight:900">ADD SEPANG TO CALENDAR</span>
+                <input type="checkbox" id="pre-sepang" ${userSettings.useSepang ? 'checked' : ''}>
+            </label>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-primary" style="width:100%" onclick="finalizePreSeason()"><span>Confirm & Start Season</span></button>
+        </div>`);
+    window.finalizePreSeason = () => {
+        const sep = $('pre-sepang');
+        if(sep) toggleSetting('useSepang', sep.checked);
+        hideModal();
+        if(callback) callback();
+    };
+}
+window.showPreSeasonSetup = showPreSeasonSetup;
+
+// --- MANAGER CAREER: PROMOTE F2 DRIVER ---
+function showPromoteF2() {
+    let html = `<h2>Promote F2 Driver to F1</h2><p class="text-muted" style="text-align:center;margin:0.5rem 0">Replace a driver on your team with an F2 talent</p>`;
+    html += `<div style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem; margin:1rem 0">`;
+    F2_DRIVERS.forEach(d => {
+        html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#111; padding:0.75rem; border:2px solid #333;">
+            <div><strong style="color:${d.color}">${d.name}</strong><br><span class="text-muted" style="font-size:0.75rem">${d.team} | OVR ${d.ovr}</span></div>
+            <button class="btn btn-small btn-green" onclick="doPromoteF2('${d.id}')"><span>PROMOTE</span></button>
+        </div>`;
+    });
+    html += `</div><div class="modal-buttons"><button class="btn btn-secondary" onclick="hideModal()"><span>Cancel</span></button></div>`;
+    showModal(html);
+    window.doPromoteF2 = doPromoteF2;
+}
+window.showPromoteF2 = showPromoteF2;
+
+function doPromoteF2(f2Id) {
+    const f2Driver = F2_DRIVERS.find(d => d.id === f2Id);
+    if(!f2Driver || !game.drivers) return;
+    const playerTeam = game.drivers.find(d => d.id === game.selectedId)?.team;
+    if(!playerTeam) return;
+    // Find the weakest non-player driver on the team
+    const teamDrivers = game.drivers.filter(d => d.team === playerTeam && d.id !== game.selectedId);
+    if(teamDrivers.length === 0) return;
+    teamDrivers.sort((a,b) => a.ovr - b.ovr);
+    const replaced = teamDrivers[0];
+    // Swap in the F2 driver
+    const idx = game.drivers.findIndex(d => d.id === replaced.id);
+    if(idx >= 0) {
+        const promoted = { ...f2Driver, id: f2Driver.id, team: playerTeam, color: replaced.color };
+        game.drivers[idx] = promoted;
+        game.standings[promoted.id] = 0;
+        delete game.standings[replaced.id];
+        save();
+        hideModal();
+        showModal(`<h2>Driver Promoted!</h2><p style="text-align:center;margin:1rem 0"><strong style="color:${promoted.color}">${promoted.name}</strong> replaces ${replaced.name} at ${playerTeam}.</p><div class="modal-buttons"><button class="btn btn-primary" onclick="hideModal();renderHub()"><span>OK</span></button></div>`);
+    }
+}
+
+// --- SEASON-END DRIVER TRANSFERS ---
+function simulateTransfers() {
+    if(!game.drivers) return;
+    const teams = [...new Set(game.drivers.map(d => d.team))];
+    const numSwaps = 2 + Math.floor(Math.random() * 3); // 2-4 swaps
+    const transfers = [];
+    
+    for(let i = 0; i < numSwaps; i++) {
+        const t1 = teams[Math.floor(Math.random() * teams.length)];
+        const t2 = teams.filter(t => t !== t1)[Math.floor(Math.random() * (teams.length - 1))];
+        if(!t2) continue;
+        
+        const d1Pool = game.drivers.filter(d => d.team === t1 && d.id !== game.selectedId);
+        const d2Pool = game.drivers.filter(d => d.team === t2 && d.id !== game.selectedId);
+        if(d1Pool.length === 0 || d2Pool.length === 0) continue;
+        
+        const d1 = d1Pool[Math.floor(Math.random() * d1Pool.length)];
+        const d2 = d2Pool[Math.floor(Math.random() * d2Pool.length)];
+        
+        // Swap teams and colors
+        const tmpTeam = d1.team, tmpColor = d1.color;
+        d1.team = d2.team; d1.color = d2.color;
+        d2.team = tmpTeam; d2.color = tmpColor;
+        transfers.push(`${d1.name} → ${d1.team}`);
+        transfers.push(`${d2.name} → ${d2.team}`);
+    }
+    
+    // Random chance to promote an F2 driver (replace worst non-player driver on a random team)
+    if(Math.random() > 0.5) {
+        const randomTeam = teams[Math.floor(Math.random() * teams.length)];
+        const worst = game.drivers.filter(d => d.team === randomTeam && d.id !== game.selectedId).sort((a,b) => a.ovr - b.ovr)[0];
+        if(worst) {
+            const f2Pick = F2_DRIVERS[Math.floor(Math.random() * F2_DRIVERS.length)];
+            const idx = game.drivers.findIndex(d => d.id === worst.id);
+            if(idx >= 0) {
+                const promoted = { ...f2Pick, team: randomTeam, color: worst.color };
+                game.drivers[idx] = promoted;
+                game.standings[promoted.id] = 0;
+                transfers.push(`${promoted.name} (F2) promoted to ${randomTeam}`);
+            }
+        }
+    }
+    
+    save();
+    return transfers;
+}
+window.simulateTransfers = simulateTransfers;
 
 init();

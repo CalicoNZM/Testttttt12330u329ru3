@@ -27,6 +27,29 @@ const DRIVERS = [
     { id:'per',name:'Sergio Pérez',team:'Cadillac',color:'#C8AA00',pac:86,rac:86,awa:85,exp:95,ovr:86 },
 ];
 
+const F2_DRIVERS = [
+    { id:'f2_had',name:'Isack Hadjar',team:'Campos Racing',color:'#FFD700',pac:86,rac:82,awa:78,exp:72,ovr:80 },
+    { id:'f2_bor',name:'Gabriel Bortoleto',team:'Invicta Racing',color:'#00CC66',pac:85,rac:81,awa:79,exp:70,ovr:79 },
+    { id:'f2_mal',name:'Jak Crawford',team:'Prema Racing',color:'#E8002D',pac:83,rac:80,awa:78,exp:73,ovr:79 },
+    { id:'f2_ant',name:'Andrea Kimi Antonelli',team:'Prema Racing',color:'#E8002D',pac:90,rac:85,awa:81,exp:68,ovr:82 },
+    { id:'f2_oal',name:'Paul Aron',team:'Hitech Pulse-Eight',color:'#999999',pac:82,rac:79,awa:77,exp:71,ovr:78 },
+    { id:'f2_mar',name:'Pepe Martí',team:'Campos Racing',color:'#FFD700',pac:81,rac:78,awa:76,exp:69,ovr:77 },
+    { id:'f2_bea',name:'Victor Martins',team:'ART Grand Prix',color:'#1A1A1A',pac:80,rac:79,awa:78,exp:74,ovr:78 },
+    { id:'f2_dru',name:'Enzo Fittipaldi',team:'Van Amersfoort',color:'#FF6600',pac:80,rac:78,awa:75,exp:72,ovr:77 },
+    { id:'f2_cor',name:'Zane Maloney',team:'Rodin Motorsport',color:'#0033CC',pac:83,rac:80,awa:77,exp:71,ovr:78 },
+    { id:'f2_doo',name:'Jack Doohan',team:'Invicta Racing',color:'#00CC66',pac:84,rac:82,awa:79,exp:74,ovr:80 },
+    { id:'f2_iwa',name:'Ritomo Miyata',team:'Rodin Motorsport',color:'#0033CC',pac:79,rac:77,awa:76,exp:68,ovr:76 },
+    { id:'f2_ait',name:'Amaury Cordeel',team:'Van Amersfoort',color:'#FF6600',pac:76,rac:74,awa:73,exp:70,ovr:74 },
+    { id:'f2_fre',name:'Oliver Goethe',team:'MP Motorsport',color:'#FF4400',pac:78,rac:76,awa:75,exp:67,ovr:75 },
+    { id:'f2_sta',name:'Kush Maini',team:'Invicta Racing',color:'#00CC66',pac:77,rac:76,awa:74,exp:71,ovr:75 },
+    { id:'f2_ver',name:'Joshua Dürksen',team:'AIX Racing',color:'#00AAFF',pac:79,rac:77,awa:75,exp:66,ovr:75 },
+    { id:'f2_sar',name:'Franco Colapinto',team:'MP Motorsport',color:'#FF4400',pac:82,rac:80,awa:78,exp:72,ovr:79 },
+    { id:'f2_bri',name:'Luke Browning',team:'Hitech Pulse-Eight',color:'#999999',pac:80,rac:78,awa:76,exp:68,ovr:76 },
+    { id:'f2_dri',name:'Richard Verschoor',team:'Trident',color:'#0044AA',pac:79,rac:78,awa:77,exp:75,ovr:77 },
+    { id:'f2_col',name:'Seb Ogier',team:'ART Grand Prix',color:'#1A1A1A',pac:76,rac:75,awa:74,exp:65,ovr:73 },
+    { id:'f2_hob',name:'Taylor Barnard',team:'AIX Racing',color:'#00AAFF',pac:78,rac:76,awa:74,exp:64,ovr:74 },
+];
+
 // Full 2026 Calendar — 24 races, each with unique track shape generator
 // Tracks generate on a LARGE virtual canvas (S = scale multiplier)
 const CALENDAR = [

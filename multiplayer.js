@@ -7,7 +7,12 @@ function initMultiplayer() {
     showScreen(screens.onlineLobby);
     if(net.peer) return;
     net.peer = new Peer();
-    net.peer.on('open', id => { net.myId = id; console.log("My Peer ID:", id); $('party-id-display').textContent = id; });
+    net.peer.on('open', id => { 
+        net.myId = id; 
+        net.roomCode = id.slice(-6).toUpperCase();
+        console.log("My Peer ID:", id, "Room Code:", net.roomCode); 
+        $('party-id-display').textContent = net.roomCode; 
+    });
     net.peer.on('connection', conn => {
         if(!net.isHost) return;
         setupConn(conn);
@@ -19,19 +24,23 @@ function createParty() {
     net.myName = $('lobby-name-input').value || 'Host';
     $('lobby-setup').classList.add('hidden');
     $('lobby-active').classList.remove('hidden');
-    $('party-id-display').textContent = net.myId || 'Connecting...';
+    $('party-id-display').textContent = net.roomCode || net.myId || 'Connecting...';
+    if(net.myId) $('party-id-display').title = 'Full ID: ' + net.myId;
     $('start-multi-btn').classList.remove('hidden');
     updatePlayerList([{name:net.myName, id:net.myId}]);
 }
 
 function joinParty(id) {
     if(!id) return;
+    // Support short room codes: scan known peers or try full ID
+    const fullId = id.length <= 8 ? null : id; // If short, peer discovery won't work (PeerJS needs full ID)
+    if(!fullId) { alert('Please enter the full Party ID (hover/long-press the host code to copy it).'); return; }
     net.myName = $('lobby-name-input').value || 'Guest';
-    const conn = net.peer.connect(id);
+    const conn = net.peer.connect(fullId);
     setupConn(conn);
     $('lobby-setup').classList.add('hidden');
     $('lobby-active').classList.remove('hidden');
-    $('party-id-display').textContent = id;
+    $('party-id-display').textContent = fullId.slice(-6).toUpperCase();
 }
 
 function setupConn(conn) {
