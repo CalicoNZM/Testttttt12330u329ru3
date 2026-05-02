@@ -2,267 +2,609 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Uformula</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEO-GP // CAREER SIMULATOR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+
+        :root {
+            --accent: #EBFF00;
+            --bg: #050505;
+            --surface: #FFFFFF;
+            --text: #050505;
+            --border-width: 2px;
+            --glass: rgba(255, 255, 255, 0.03);
+            --green: #27F4D2;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Dynamic Background */
+        .bg-lines {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            opacity: 0.2;
+        }
+
+        .line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(235, 255, 0, 0.2), transparent);
+            height: 1px;
+            width: 100%;
+            animation: moveLine 8s linear infinite;
+        }
+
+        @keyframes moveLine {
+            0% { transform: translateY(-100vh) skewY(-5deg); }
+            100% { transform: translateY(100vh) skewY(-5deg); }
+        }
+
+        /* Refined Brutalist Card */
+        .m-card {
+            background: var(--surface);
+            color: var(--text);
+            border: var(--border-width) solid #000;
+            box-shadow: 6px 6px 0px #000;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .m-card-dark {
+            background: #111;
+            color: white;
+            border: var(--border-width) solid white;
+            box-shadow: 6px 6px 0px white;
+        }
+
+        .m-button {
+            background: var(--surface);
+            color: var(--text);
+            border: var(--border-width) solid #000;
+            box-shadow: 4px 4px 0px #000;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .m-button:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px #000;
+            background: var(--accent);
+        }
+
+        .m-button:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px #000;
+        }
+        
+        .m-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #ccc;
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .view-section {
+            display: none;
+            height: 100vh;
+            width: 100vw;
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding: 4rem;
+        }
+
+        .active { display: flex; flex-direction: column; animation: fadeIn 0.4s ease-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* HUD Refinement */
+        .hud-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+        }
+
+        .hud-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            position: absolute;
+            left: 0;
+            top: 0;
+            transition: width 0.3s ease;
+        }
+
+        .nav-link {
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            opacity: 0.4;
+            transition: all 0.3s;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            position: relative;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            left: -1rem;
+            top: 50%;
+            width: 0px;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s;
+        }
+
+        .nav-link:hover, .nav-link.active-link { opacity: 1; color: var(--accent); }
+        .nav-link.active-link::after { width: 12px; }
+        
+        .driver-card {
+            border: 2px solid rgba(255,255,255,0.1);
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .driver-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+        .driver-card.selected { border-color: var(--accent); background: var(--accent); color: black; box-shadow: 4px 4px 0px white; }
+
+        /* Hide race canvas visually but keep it working */
+        #race-canvas { position: absolute; inset: 0; width: 100%; height: 100%; filter: grayscale(100%) contrast(1.5) opacity(0.2); z-index: 1; pointer-events: none; }
+        #minimap-canvas { position: absolute; bottom: 2rem; right: 2rem; z-index: 20; border: 2px solid white; background: rgba(0,0,0,0.8); }
+    </style>
 </head>
 <body>
-    <div id="game-container">
-        <!-- Main Menu -->
-        <div id="main-menu-screen" class="screen active">
-            <div class="menu-bg"></div>
-            <div class="menu-content">
-                <h1 class="game-title">U<span class="accent">formula</span> <span style="font-size:0.4em;vertical-align:top;opacity:0.6">V6</span></h1>
-                <p class="subtitle">Next-Gen Racing</p>
-                <div class="menu-buttons">
-                    <button id="start-btn" class="btn btn-primary"><span>Start Game</span></button>
-                    <button onclick="openSettings()" class="btn btn-secondary"><span>Settings</span></button>
-                    <button onclick="window.close()" class="btn btn-secondary"><span>Quit</span></button>
-                </div>
+
+    <!-- Animated Background -->
+    <div class="bg-lines" id="bg-lines"></div>
+
+    <!-- GLOBAL NAVIGATION -->
+    <nav id="global-nav" class="fixed top-12 left-12 z-[100] flex flex-col gap-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-8 h-8 bg-white flex items-center justify-center border-2 border-black shadow-[2px_2px_0px_#000]">
+                <div class="w-4 h-4 bg-black rotate-45"></div>
+            </div>
+            <span class="font-black text-xl italic tracking-tighter">NEO_GP</span>
+        </div>
+        <div class="nav-link active-link" onclick="if(window.showScreen) showScreen(screens.menu)">HOME_ROOT</div>
+        <div class="nav-link" onclick="if(window.game && game.selectedId) showScreen(screens.hub)">CAREER_HUB</div>
+        <div class="nav-link" onclick="openSettings()">SYSTEM_SET</div>
+    </nav>
+
+    <!-- 1. MAIN MENU -->
+    <div id="main-menu-screen" class="view-section active justify-center pl-[20vw]">
+        <div class="max-w-5xl">
+            <div class="flex items-center gap-4 mb-2">
+                <span class="mono text-xs text-[var(--accent)] font-bold">LATEST_BUILD: 2.9.44_STABLE</span>
+                <div class="h-[1px] w-24 bg-white/20"></div>
+            </div>
+            <h1 class="text-[12rem] font-[900] leading-[0.8] tracking-tighter mb-12">NEO<br>GP<span class="text-xs align-top mono font-normal ml-6 tracking-widest opacity-40 uppercase">Global Motorsport Terminal</span></h1>
+            
+            <div class="flex gap-6">
+                <button id="start-btn" class="m-button bg-[var(--accent)] px-12 py-5 text-xl">ENTER_SIMULATION</button>
+                <button onclick="openSettings()" class="m-button px-10 py-5 text-xl">OPTIONS</button>
             </div>
         </div>
+    </div>
 
-        <!-- Start Choice (Online/Offline) -->
-        <div id="start-choice-screen" class="screen">
-            <div class="menu-bg"></div>
-            <div class="menu-content">
-                <h1 class="screen-title">Select <span class="accent">Mode</span></h1>
-                <div class="choice-grid">
-                    <div class="choice-card">
-                        <h2>Online</h2>
-                        <p class="text-muted">Race against players worldwide.</p>
-                        <button id="mode-online-btn" class="btn btn-accent"><span>Go Online</span></button>
-                    </div>
-                    <div class="choice-card">
-                        <h2>Offline</h2>
-                        <p class="text-muted">Classic career and quick races.</p>
-                        <button id="mode-offline-btn" class="btn btn-primary"><span>Stay Offline</span></button>
-                    </div>
-                </div>
-                <button onclick="showScreen(screens.menu)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+    <!-- 2. START CHOICE -->
+    <div id="start-choice-screen" class="view-section justify-center pl-[20vw]">
+        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">SELECT_MODE</h2>
+        <div class="flex gap-6">
+            <div onclick="document.getElementById('mode-offline-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80 transition-colors">
+                <h3 class="font-black text-3xl mb-4">OFFLINE</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Career & Quick Race</p>
+                <div class="w-full h-1 bg-[var(--accent)] mt-auto transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform"></div>
+                <button id="mode-offline-btn" class="hidden"></button>
+            </div>
+            <div class="glass-panel p-8 cursor-not-allowed group w-80 opacity-30">
+                <h3 class="font-black text-3xl mb-4">ONLINE</h3>
+                <p class="mono text-xs mb-8">Multiplayer (Disabled)</p>
+                <button id="mode-online-btn" class="hidden"></button>
             </div>
         </div>
+        <button onclick="showScreen(screens.menu)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK_ROOT</button>
+    </div>
 
-        <!-- Online Lobby -->
-        <div id="online-lobby-screen" class="screen">
-            <header class="screen-header"><h1>Multiplayer <span class="accent">Lobby</span></h1></header>
-            <div class="lobby-container">
-                <div id="lobby-setup" class="panel">
-                    <div class="form-group">
-                        <label>Display Name</label>
-                        <input type="text" id="lobby-name-input" placeholder="Your Name" maxlength="15">
+    <!-- 3. OFFLINE LANDING -->
+    <div id="offline-landing-screen" class="view-section justify-center pl-[20vw]">
+        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">OFFLINE_DB</h2>
+        <div class="flex gap-6">
+            <div onclick="document.getElementById('offline-career-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-[var(--accent)] hover:text-black w-80 transition-colors border-2 border-transparent hover:border-black hover:shadow-[8px_8px_0px_white]">
+                <h3 class="font-black text-3xl mb-4">CAREER</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Legacy Campaign</p>
+                <button id="offline-career-btn" class="hidden"></button>
+            </div>
+            <div onclick="document.getElementById('quick-race-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80 transition-colors">
+                <h3 class="font-black text-3xl mb-4">QUICK_RACE</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Instant Action</p>
+                <button id="quick-race-btn" class="hidden"></button>
+            </div>
+        </div>
+        <button onclick="showScreen(screens.startChoice)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK</button>
+    </div>
+
+    <!-- 4. CAREER TYPE -->
+    <div id="career-type-screen" class="view-section justify-center pl-[20vw]">
+        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">CAREER_TYPE</h2>
+        <div class="flex gap-6">
+            <div onclick="document.getElementById('type-player-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80">
+                <h3 class="font-black text-3xl mb-4">DRIVER</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Focus on driving and stats.</p>
+                <button id="type-player-btn" class="hidden"></button>
+            </div>
+            <div onclick="document.getElementById('type-champ-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80">
+                <h3 class="font-black text-3xl mb-4">MANAGER</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Manage team and strategy.</p>
+                <button id="type-champ-btn" class="hidden"></button>
+            </div>
+        </div>
+        <button onclick="showScreen(screens.offlineLanding)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK</button>
+    </div>
+
+    <!-- 5. CAREER CHOICE -->
+    <div id="career-choice-screen" class="view-section justify-center pl-[20vw]">
+        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">TEAM_SETUP</h2>
+        <div class="flex gap-6">
+            <div onclick="document.getElementById('career-real-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-72">
+                <h3 class="font-black text-2xl mb-4">REAL_ROSTER</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Pick existing 2026 driver.</p>
+                <button id="career-real-btn" class="hidden"></button>
+            </div>
+            <div onclick="document.getElementById('career-custom-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-[var(--accent)] hover:text-black w-72">
+                <h3 class="font-black text-2xl mb-4">CUSTOM_TEAM</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Create 11th team.</p>
+                <button id="career-custom-btn" class="hidden"></button>
+            </div>
+            <div onclick="showCreateDriver()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-72">
+                <h3 class="font-black text-2xl mb-4">CUSTOM_DRIVER</h3>
+                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Join existing team.</p>
+            </div>
+        </div>
+        <button onclick="showScreen(screens.typeChoice)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK</button>
+    </div>
+
+    <!-- 6. CREATE TEAM -->
+    <div id="create-team-screen" class="view-section justify-center pl-[20vw]">
+        <h2 class="text-6xl font-[800] italic tracking-tighter mb-8">INIT_TEAM</h2>
+        <div class="glass-panel p-8 max-w-2xl w-full">
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <div>
+                    <label class="mono text-xs opacity-50 mb-2 block">DRIVER_NAME</label>
+                    <input type="text" id="input-driver-name" class="w-full bg-black border-2 border-white/20 p-3 text-white focus:border-[var(--accent)] outline-none" placeholder="Alex Cross">
+                </div>
+                <div>
+                    <label class="mono text-xs opacity-50 mb-2 block">TEAM_NAME</label>
+                    <input type="text" id="input-team-name" class="w-full bg-black border-2 border-white/20 p-3 text-white focus:border-[var(--accent)] outline-none" placeholder="Apex Racing">
+                </div>
+            </div>
+            <div class="mb-8">
+                <label class="mono text-xs opacity-50 mb-2 block">TEAM_LIVERY_COLOR</label>
+                <input type="color" id="input-team-color" value="#EBFF00" class="w-full h-12 bg-transparent cursor-pointer">
+            </div>
+            <div class="mb-8">
+                <label class="mono text-xs opacity-50 mb-2 block flex justify-between"><span>STATS_ALLOCATION</span><span id="points-left" class="text-[var(--accent)]">(10 pts)</span></label>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="bg-black border border-white/10 p-4">
+                        <div class="mono text-[10px] mb-2 opacity-50">PACE</div>
+                        <div class="flex items-center justify-between">
+                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="pac" data-dir="-1">-</button>
+                            <span id="alloc-pac" class="font-bold text-xl">75</span>
+                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="pac" data-dir="1">+</button>
+                        </div>
                     </div>
-                    <div class="lobby-actions">
-                        <button id="create-party-btn" class="btn btn-primary"><span>Create Party</span></button>
-                        <div class="join-group">
-                            <input type="text" id="join-id-input" placeholder="Party ID">
-                            <button id="join-party-btn" class="btn btn-secondary"><span>Join</span></button>
+                    <div class="bg-black border border-white/10 p-4">
+                        <div class="mono text-[10px] mb-2 opacity-50">RACECRAFT</div>
+                        <div class="flex items-center justify-between">
+                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="rac" data-dir="-1">-</button>
+                            <span id="alloc-rac" class="font-bold text-xl">75</span>
+                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="rac" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="bg-black border border-white/10 p-4">
+                        <div class="mono text-[10px] mb-2 opacity-50">AWARENESS</div>
+                        <div class="flex items-center justify-between">
+                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="awa" data-dir="-1">-</button>
+                            <span id="alloc-awa" class="font-bold text-xl">75</span>
+                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="awa" data-dir="1">+</button>
                         </div>
                     </div>
                 </div>
-                <div id="lobby-active" class="panel hidden">
-                    <h3>Party: <span id="party-id-display" class="accent">---</span></h3>
-                    <div id="player-list" class="player-list"></div>
-                    <div class="lobby-footer">
-                        <button id="leave-party-btn" class="btn btn-secondary"><span>Leave</span></button>
-                        <button id="start-multi-btn" class="btn btn-primary hidden"><span>Start Race</span></button>
-                    </div>
-                </div>
             </div>
-            <button onclick="showScreen(screens.startChoice)" class="btn btn-secondary btn-small" style="margin-top:1rem"><span>Back</span></button>
-        </div>
-
-        <!-- Offline Landing (Career/Quick Race) -->
-        <div id="offline-landing-screen" class="screen">
-            <div class="menu-bg"></div>
-            <div class="menu-content">
-                <h1 class="screen-title">Offline <span class="accent">Racing</span></h1>
-                <div class="choice-grid">
-                    <div class="choice-card">
-                        <h2>Career Mode</h2>
-                        <p class="text-muted">Your legacy starts here.</p>
-                        <button id="offline-career-btn" class="btn btn-primary"><span>Continue</span></button>
-                    </div>
-                    <div class="choice-card">
-                        <h2>Quick Race</h2>
-                        <p class="text-muted">Random driver, random track.</p>
-                        <button id="quick-race-btn" class="btn btn-secondary"><span>Instant Start</span></button>
-                    </div>
-                </div>
-                <button onclick="showScreen(screens.startChoice)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
+            <div class="flex gap-4">
+                <button id="confirm-create-btn" class="m-button bg-[var(--accent)] px-8 py-3 flex-grow">START_CAMPAIGN</button>
+                <button id="back-create-btn" class="m-button px-8 py-3">CANCEL</button>
             </div>
-        </div>
-
-        <!-- Career Type Choice -->
-        <div id="career-type-screen" class="screen">
-            <div class="menu-bg"></div>
-            <div class="menu-content">
-                <h1 class="screen-title">Career <span class="accent">Type</span></h1>
-                <div class="choice-grid">
-                    <div class="choice-card">
-                        <h2>Player Career</h2>
-                        <p class="text-muted">Focus on driver skills, XP, and climbing the team ladder.</p>
-                        <button id="type-player-btn" class="btn btn-primary"><span>Select</span></button>
-                    </div>
-                    <div class="choice-card">
-                        <h2>Championship</h2>
-                        <p class="text-muted">Manage the team, two drivers, and car development.</p>
-                        <button id="type-champ-btn" class="btn btn-accent"><span>Select</span></button>
-                    </div>
-                </div>
-                <button onclick="showScreen(screens.offlineLanding)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
-            </div>
-        </div>
-
-        <!-- Career Choice (Real/Custom) -->
-        <div id="career-choice-screen" class="screen">
-            <div class="menu-bg"></div>
-            <div class="menu-content">
-                <h1 class="screen-title">Setup <span class="accent">Team</span></h1>
-                <div class="choice-grid">
-                    <div class="choice-card">
-                        <h2>Real Teams</h2>
-                        <p class="text-muted">Pick a driver from the official 2026 grid.</p>
-                        <button id="career-real-btn" class="btn btn-primary"><span>Real Roster</span></button>
-                    </div>
-                    <div class="choice-card">
-                        <h2>Custom Team</h2>
-                        <p class="text-muted">Enter as the 11th team on the grid.</p>
-                        <button id="career-custom-btn" class="btn btn-accent"><span>Create Custom</span></button>
-                    </div>
-                    <div class="choice-card">
-                        <h2>Create Driver</h2>
-                        <p class="text-muted">Name your own driver and join an existing F1 team.</p>
-                        <button class="btn btn-green" onclick="showCreateDriver()"><span>Create Driver</span></button>
-                    </div>
-                </div>
-                <button onclick="showScreen(screens.typeChoice)" class="btn btn-secondary btn-small" style="margin-top:1.5rem"><span>Back</span></button>
-            </div>
-        </div>
-        
-        <!-- [EXISTING SCREENS CONTINUED...] -->
-        <!-- Create Team -->
-        <div id="create-team-screen" class="screen">
-            <header class="screen-header"><h1>Create Your <span class="accent">Team</span></h1></header>
-            <div class="create-form">
-                <div class="form-group">
-                    <label>Driver Name</label>
-                    <input type="text" id="input-driver-name" placeholder="e.g. Alex Cross" maxlength="20">
-                </div>
-                <div class="form-group">
-                    <label>Team Name</label>
-                    <input type="text" id="input-team-name" placeholder="e.g. Apex Racing" maxlength="20">
-                </div>
-                <div class="form-group">
-                    <label>Team Color</label>
-                    <input type="color" id="input-team-color" value="#ff4444">
-                </div>
-                <div class="form-group">
-                    <label>Allocate Stats <span class="text-muted" id="points-left">(10 pts remaining)</span></label>
-                    <div class="stat-alloc">
-                        <div class="alloc-row"><span>Pace</span><button class="alloc-btn" data-stat="pac" data-dir="-1">−</button><span id="alloc-pac">75</span><button class="alloc-btn" data-stat="pac" data-dir="1">+</button></div>
-                        <div class="alloc-row"><span>Racecraft</span><button class="alloc-btn" data-stat="rac" data-dir="-1">−</button><span id="alloc-rac">75</span><button class="alloc-btn" data-stat="rac" data-dir="1">+</button></div>
-                        <div class="alloc-row"><span>Awareness</span><button class="alloc-btn" data-stat="awa" data-dir="-1">−</button><span id="alloc-awa">75</span><button class="alloc-btn" data-stat="awa" data-dir="1">+</button></div>
-                    </div>
-                </div>
-                <div class="form-buttons">
-                    <button id="back-create-btn" class="btn btn-secondary"><span>Back</span></button>
-                    <button id="confirm-create-btn" class="btn btn-primary"><span>Start Season</span></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Driver Selection -->
-        <div id="selection-screen" class="screen">
-            <header class="screen-header">
-                <h1>Choose your <span class="accent">Driver</span></h1>
-                <p class="text-muted">Pick a driver to begin your 2026 campaign.</p>
-            </header>
-            <div id="driver-grid" class="driver-grid"></div>
-            <footer class="screen-footer">
-                <button id="back-select-btn" class="btn btn-secondary"><span>Back</span></button>
-                <button id="confirm-driver-btn" class="btn btn-primary" disabled><span>Confirm Driver</span></button>
-            </footer>
-        </div>
-
-        <!-- Career Hub -->
-        <div id="career-hub-screen" class="screen">
-            <header class="hub-header">
-                <div>
-                    <h1>Career <span class="accent">Hub</span></h1>
-                    <p class="text-muted" id="season-info">Round 1 of 24 — Melbourne</p>
-                </div>
-                <div class="hub-info">
-                    <p class="currency" id="currency-display">$25,000</p>
-                    <button id="menu-from-hub-btn" class="btn btn-small btn-secondary"><span>Menu</span></button>
-                </div>
-            </header>
-            <div class="hub-grid">
-                <div id="hub-driver-panel" class="panel"></div>
-                <div id="hub-car-panel" class="panel"></div>
-            </div>
-            <footer class="hub-footer">
-                <button id="standings-btn" class="btn btn-secondary"><span>Standings</span></button>
-                <button id="shop-btn" class="btn btn-accent"><span>Upgrades</span></button>
-                <button id="race-btn" class="btn btn-primary"><span>Next Race</span></button>
-            </footer>
-        </div>
-
-        <!-- Race Screen -->
-        <div id="race-screen" class="screen">
-            <canvas id="race-canvas"></canvas>
-            <canvas id="minimap-canvas" width="220" height="140"></canvas>
-            <div id="race-hud">
-                <div class="hud-box angled" style="align-items:flex-start">
-                    <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                        <div>POS <span class="hud-big" style="color:var(--text)" id="hud-pos">P1</span></div>
-                        <div id="hud-lap" style="font-weight:900; color:var(--accent)">LAP 1/3</div>
-                        <div id="damage-bar-container" style="border:2px solid #fff; background:#000; height:12px; margin-top:6px; box-shadow: 2px 2px 0px var(--accent); width:80px;"><div id="damage-bar"></div></div>
-                        <div class="damage-label" style="font-family:'Orbitron',sans-serif; margin-top:2px;">HEALTH</div>
-                    </div>
-                </div>
-                <div class="hud-center">
-                    <div id="race-prompt" class="accent"></div>
-                    <div id="flag-indicator" class="hud-box angled" style="background:var(--green); color:#000; box-shadow:none; padding:0.2rem 1rem;"><span>YELLOW FLAG</span></div>
-                    <button id="ovr-btn" class="hud-action-btn"><span>OVR</span></button>
-                    <button id="pit-btn" class="hud-action-btn hidden"><span>BOX</span></button>
-                </div>
-                <div class="hud-box angled" style="align-items:flex-end">
-                    <div style="display:flex; justify-content:flex-end; gap:10px; align-items:center; margin-bottom: 4px;">
-                        <button id="settings-btn" class="btn btn-small btn-secondary" style="padding: 0.2rem 0.6rem;"><span>⚙</span></button>
-                    </div>
-                    <div>TIME <span class="hud-big" id="hud-time">0:00.000</span></div>
-                    <div style="color:var(--accent); font-weight:bold; font-size:0.8rem; height: 1.2rem;" id="hud-penalties"></div>
-                    <div>SPEED <span id="hud-speed" class="hud-big">0</span></div>
-                </div>
-            </div>
-            <div id="touch-controls">
-                <div class="touch-left-side">
-                    <button id="touch-brake" class="mobile-btn-rect">BRK</button>
-                    <button id="touch-gas" class="mobile-btn-rect main">GAS</button>
-                </div>
-                <div class="touch-right-side">
-                    <div id="steering-slider-container">
-                        <div id="steering-slider-track"></div>
-                        <div id="steering-slider-knob"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal -->
-        <div id="modal-overlay" class="modal-overlay hidden">
-            <div id="modal-content" class="modal-box"></div>
         </div>
     </div>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- 7. SELECTION -->
+    <div id="selection-screen" class="view-section pl-[20vw] pt-[15vh]">
+        <h2 class="text-6xl font-[800] italic tracking-tighter mb-8">ROSTER_DB</h2>
+        <div id="driver-grid" class="grid grid-cols-4 gap-4 overflow-y-auto max-h-[60vh] pr-4 pb-12">
+            <!-- Populated by JS -->
+        </div>
+        <div class="fixed bottom-12 right-12 flex gap-4 bg-black/80 p-4 backdrop-blur-md border border-white/10">
+            <button id="back-select-btn" class="m-button px-8 py-3">BACK</button>
+            <button id="confirm-driver-btn" class="m-button bg-[var(--accent)] px-8 py-3" disabled>CONFIRM_SELECTION</button>
+        </div>
+    </div>
+
+    <!-- 8. CAREER HUB -->
+    <div id="career-hub-screen" class="view-section pl-[20vw] pt-[15vh]">
+        <div class="flex justify-between items-end mb-12">
+            <div>
+                <h2 class="text-7xl font-[900] italic tracking-tighter">CAREER_HUB</h2>
+                <p id="season-info" class="mono text-sm opacity-50 tracking-widest uppercase mt-2">ROUND 1 OF 24 — MELBOURNE</p>
+            </div>
+            <div class="text-right">
+                <div class="mono text-xs opacity-50 mb-1">TEAM_BUDGET</div>
+                <div id="currency-display" class="font-black text-4xl text-[var(--accent)]">$25,000</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-8 max-w-6xl mb-12">
+            <div id="hub-driver-panel" class="glass-panel p-8 relative overflow-hidden group">
+                <!-- Driver injected here -->
+            </div>
+            <div id="hub-car-panel" class="glass-panel p-8 border-l-4 border-[var(--accent)]">
+                <!-- Car injected here -->
+            </div>
+        </div>
+
+        <div class="flex gap-6 fixed bottom-12 right-12">
+            <button id="menu-from-hub-btn" class="m-button px-6 py-4">SYS_MENU</button>
+            <button id="standings-btn" class="m-button px-6 py-4">WDC_STANDINGS</button>
+            <button id="shop-btn" class="m-button px-6 py-4">R&D_UPGRADES</button>
+            <button id="race-btn" class="m-button bg-[var(--accent)] px-10 py-4 text-xl">DEPLOY_TO_TRACK</button>
+        </div>
+    </div>
+
+    <!-- 9. RACE SCREEN -->
+    <div id="race-screen" class="view-section !p-0 overflow-hidden bg-black">
+        <canvas id="race-canvas"></canvas>
+        <canvas id="minimap-canvas" width="220" height="140"></canvas>
+        
+        <!-- NEO-GP STYLE HUD -->
+        <div id="race-hud" class="absolute inset-0 z-10 pointer-events-none p-12 flex flex-col justify-between">
+            <div class="flex justify-between items-start">
+                <div class="flex gap-12">
+                    <div class="glass-panel p-4 px-6 border-l-4 border-white backdrop-blur-md bg-black/40">
+                        <div class="mono text-[10px] opacity-50 mb-1">POS</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="hud-pos" class="text-6xl font-black italic leading-none">1/20</span>
+                        </div>
+                    </div>
+                    <div class="glass-panel p-4 px-6 backdrop-blur-md bg-black/40">
+                        <div class="mono text-[10px] opacity-50 mb-1">LAP</div>
+                        <div id="hud-lap" class="text-5xl font-black italic leading-none">1/3</div>
+                    </div>
+                </div>
+                <div class="text-right glass-panel p-4 px-6 backdrop-blur-md bg-black/40">
+                    <div class="mono text-[10px] opacity-50 mb-1">SESSION_TIME</div>
+                    <div id="hud-time" class="mono text-3xl font-black mb-1">00:00.000</div>
+                    <div id="hud-penalties" class="text-red-500 font-black text-sm italic h-4"></div>
+                </div>
+            </div>
+
+            <div class="w-full flex justify-center pointer-events-auto">
+                <div id="race-prompt" class="text-7xl font-black italic text-[var(--accent)] drop-shadow-[0_0_20px_rgba(235,255,0,0.5)] tracking-tighter"></div>
+                <div id="flag-indicator" class="hidden absolute top-32 px-8 py-2 bg-yellow-400 text-black font-black text-2xl italic tracking-widest">YELLOW FLAG</div>
+            </div>
+
+            <div class="flex items-end justify-between">
+                <div class="w-80 flex flex-col gap-6 glass-panel p-6 backdrop-blur-md bg-black/40">
+                    <div>
+                        <div class="flex justify-between mono text-[10px] mb-2 uppercase opacity-60">
+                            <span>CAR_HEALTH</span>
+                        </div>
+                        <div class="hud-bar"><div id="damage-bar" class="hud-bar-fill w-[100%] bg-green-400 shadow-[0_0_10px_#4ade80]"></div></div>
+                    </div>
+                    <div class="flex gap-4 pointer-events-auto">
+                        <button id="ovr-btn" class="m-button flex-1 py-3 bg-blue-600 text-white border-blue-400 text-sm opacity-50">OVR_MODE</button>
+                        <button id="pit-btn" class="m-button flex-1 py-3 hidden">BOX_BOX</button>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <div class="mb-2">
+                        <span id="hud-speed" class="text-[10rem] font-[800] italic leading-none tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">0</span>
+                        <div class="mono text-lg font-bold tracking-[0.5em] mt-0 opacity-40">KM_H</div>
+                    </div>
+                </div>
+
+                <div class="w-80 flex flex-col items-end gap-6">
+                    <button id="settings-btn" class="m-button px-4 py-2 pointer-events-auto text-xs">PAUSE_SIM</button>
+                </div>
+            </div>
+            
+            <!-- Mobile touch controls (Invisible but active) -->
+            <div id="touch-controls" class="absolute inset-0 z-20 hidden pointer-events-auto">
+                <div class="absolute left-0 bottom-0 w-1/3 h-1/2 flex gap-2 p-4">
+                    <button id="touch-brake" class="flex-1 bg-red-500/20 active:bg-red-500/50 rounded-lg border border-red-500/30"></button>
+                    <button id="touch-gas" class="flex-1 bg-green-500/20 active:bg-green-500/50 rounded-lg border border-green-500/30"></button>
+                </div>
+                <div class="absolute right-0 bottom-0 w-1/3 h-1/2 p-4 flex items-center">
+                    <div id="steering-slider-container" class="w-full h-16 bg-white/10 rounded-full relative overflow-hidden border border-white/20">
+                        <div id="steering-slider-knob" class="absolute top-0 left-[50%] -ml-8 w-16 h-16 bg-white rounded-full shadow-[0_0_15px_white]"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OVERLAY -->
+    <div id="modal-overlay" class="hidden fixed inset-0 z-[500] bg-black/90 flex items-center justify-center p-8 backdrop-blur-md">
+        <div id="modal-content" class="m-card-dark p-10 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+            <!-- Modal Content Injected Here -->
+        </div>
+    </div>
+
+    <!-- Dummies for unused screens to avoid JS errors -->
+    <div id="online-lobby-screen" class="view-section"></div>
+
     <script src="data.js"></script>
-    <script src="multiplayer.js"></script>
     <script src="game.js"></script>
-    <script src="3d.js"></script>
+    
+    <!-- NEO-GP UI OVERRIDES -->
+    <script>
+        // Start background animation
+        const bg = document.getElementById('bg-lines');
+        for (let i = 0; i < 20; i++) {
+            const line = document.createElement('div');
+            line.className = 'line';
+            line.style.top = Math.random() * 100 + 'vh';
+            line.style.animationDelay = (Math.random() * 8) + 's';
+            line.style.opacity = Math.random() * 0.5;
+            bg.appendChild(line);
+        }
+
+        // Enable touch controls on mobile devices
+        if('ontouchstart' in window) {
+            document.getElementById('touch-controls').classList.remove('hidden');
+        }
+
+        // Override renderHub to match NeoGP styling
+        window.renderHub = function() {
+            const drivers = getDrivers();
+            const d = drivers.find(dr => dr.id === game.selectedId);
+            if (!d) return;
+            const stats = getPlayerStats(d);
+            const round = game.round || 0;
+            const cal = getCalendar();
+            const race = cal[Math.min(round, cal.length-1)];
+            
+            document.getElementById('currency-display').textContent = `$${game.currency.toLocaleString()}`;
+            document.getElementById('season-info').textContent = `ROUND ${round+1} OF ${cal.length} — ${race.city.toUpperCase()}`;
+            
+            // Hub Panels
+            document.getElementById('hub-driver-panel').innerHTML = `
+                <div class="absolute -right-4 -top-4 text-8xl font-black opacity-[0.03] group-hover:opacity-10 transition-opacity italic">${d.ovr}</div>
+                <div class="mono text-xs opacity-50 mb-6 uppercase tracking-widest">ACTIVE_DRIVER</div>
+                <h3 class="font-black text-5xl leading-none mb-2" style="color:${d.color}">${d.name.toUpperCase()}</h3>
+                <p class="mono text-sm opacity-60 mb-8 uppercase">${d.team}</p>
+                
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <div class="flex justify-between mono text-[10px] mb-1"><span>PACE</span><span class="font-bold">${stats.pac}</span></div>
+                        <div class="hud-bar"><div class="hud-bar-fill" style="width:${stats.pac}%; background:${d.color}; box-shadow: 0 0 10px ${d.color}"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mono text-[10px] mb-1"><span>RACECRAFT</span><span class="font-bold">${stats.rac}</span></div>
+                        <div class="hud-bar"><div class="hud-bar-fill" style="width:${stats.rac}%; background:${d.color}; box-shadow: 0 0 10px ${d.color}"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mono text-[10px] mb-1"><span>AWARENESS</span><span class="font-bold">${stats.awa}</span></div>
+                        <div class="hud-bar"><div class="hud-bar-fill" style="width:${stats.awa}%; background:${d.color}; box-shadow: 0 0 10px ${d.color}"></div></div>
+                    </div>
+                </div>
+                ${game.careerMode==='player'?`<button class="m-button w-full mt-8 py-3 text-sm bg-white text-black" onclick="simulateTraining()">EXECUTE_TRAINING</button>`:''}
+            `;
+
+            document.getElementById('hub-car-panel').innerHTML = `
+                <div class="mono text-xs opacity-50 mb-6 uppercase tracking-widest">TEAM_OPS</div>
+                <h3 class="font-black text-2xl mb-4">STRATEGY: <span class="text-[var(--accent)]">${game.careerMode==='champ'?'MANAGER':'CONTRACT'}</span></h3>
+                <div class="mt-4">
+                    ${game.careerMode==='champ' ? `
+                        <p class="mono text-xs opacity-60 mb-4">ACTIVE RACE DRIVER</p>
+                        <div class="flex flex-col gap-3 mb-6">
+                            ${game.teamDrivers.map((td,i) => `<button class="m-button w-full py-3 text-sm ${game.selectedId===td.id?'bg-[var(--accent)] text-black':'bg-black text-white border-white/20'}" onclick="pickChampDriver(${i})">${td.name.toUpperCase()}</button>`).join('')}
+                        </div>
+                        <button class="m-button w-full py-3 text-sm bg-[var(--green)] text-black" onclick="showPromoteF2()">PROMOTE_F2_TALENT</button>
+                    ` : `
+                        <p class="mono text-sm opacity-60 mb-8">OBJECTIVE: WDC_CHAMPIONSHIP</p>
+                        <button class="m-button w-full py-3 text-sm" onclick="checkContracts()">EVALUATE_CONTRACTS</button>
+                    `}
+                </div>
+            `;
+        };
+
+        // Override renderDriverGrid
+        window.renderDriverGrid = function() {
+            const grid = document.getElementById('driver-grid');
+            grid.innerHTML = DRIVERS.map(d => `
+                <div class="driver-card" data-id="${d.id}" onclick="selectDriver(this, '${d.id}')">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-bold uppercase text-sm">${d.name}</span>
+                        <span class="font-black italic text-xl drop-shadow-md" style="color:${d.color}">${d.ovr}</span>
+                    </div>
+                    <div class="mono text-[10px] opacity-60 uppercase">${d.team}</div>
+                </div>
+            `).join('');
+        };
+        
+        window.selectDriver = function(el, id) {
+            document.querySelectorAll('.driver-card').forEach(c=>c.classList.remove('selected'));
+            el.classList.add('selected');
+            game.tempSelect = id;
+            const btn = document.getElementById('confirm-driver-btn');
+            btn.disabled = false;
+        };
+
+        // Custom Show Modal styling for NeoGP
+        window.showModal = function(html) {
+            // Transform common elements in html to NeoGP styles
+            let styledHtml = html
+                .replace(/<h2>/g, '<h2 class="text-5xl font-[900] italic tracking-tighter mb-8 border-b-2 border-white/20 pb-4">')
+                .replace(/<h3>/g, '<h3 class="text-2xl font-[800] italic mb-4">')
+                .replace(/class="modal-buttons"/g, 'class="flex gap-4 mt-8 pt-6 border-t-2 border-white/20"')
+                .replace(/class="btn btn-primary"/g, 'class="m-button bg-[var(--accent)] text-black px-8 py-3 flex-grow"')
+                .replace(/class="btn btn-secondary"/g, 'class="m-button bg-white text-black px-8 py-3"')
+                .replace(/class="btn btn-secondary btn-small"/g, 'class="m-button bg-white text-black px-4 py-2 text-xs"')
+                .replace(/class="btn btn-accent btn-small"/g, 'class="m-button bg-[var(--accent)] text-black px-4 py-2 text-xs"')
+                .replace(/class="btn btn-green btn-small"/g, 'class="m-button bg-[var(--green)] text-black px-4 py-2 text-xs"')
+                .replace(/<table class="standings-table">/g, '<table class="w-full text-left mono text-sm border-collapse">')
+                .replace(/<thead>/g, '<thead class="bg-white/10 uppercase text-xs opacity-60">')
+                .replace(/<th>/g, '<th class="p-3">')
+                .replace(/<td>/g, '<td class="p-3 border-b border-white/10">')
+                .replace(/<tr class="highlight">/g, '<tr class="bg-[var(--accent)] text-black font-bold">')
+                .replace(/<div class="upgrade-grid">/g, '<div class="grid grid-cols-3 gap-6">')
+                .replace(/<div class="upgrade-col">/g, '<div class="flex flex-col gap-3 bg-white/5 p-4 border border-white/10">')
+                .replace(/<div class="results-list">/g, '<div class="flex flex-col gap-2 font-mono text-sm">')
+                .replace(/<p class="highlight">/g, '<p class="bg-[var(--accent)] text-black font-bold p-2">');
+                
+            modal.content.innerHTML = styledHtml;
+            modal.overlay.classList.remove('hidden');
+            modal.overlay.style.display = 'flex';
+        };
+
+        window.hideModal = function() {
+            modal.overlay.classList.add('hidden');
+            modal.overlay.style.display = 'none';
+        };
+
+    </script>
 </body>
 </html>
