@@ -1,610 +1,962 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEO-GP // CAREER SIMULATOR</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
-
-        :root {
-            --accent: #EBFF00;
-            --bg: #050505;
-            --surface: #FFFFFF;
-            --text: #050505;
-            --border-width: 2px;
-            --glass: rgba(255, 255, 255, 0.03);
-            --green: #27F4D2;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: white;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            overflow: hidden;
-            margin: 0;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* Dynamic Background */
-        .bg-lines {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            overflow: hidden;
-            opacity: 0.2;
-        }
-
-        .line {
-            position: absolute;
-            background: linear-gradient(90deg, transparent, rgba(235, 255, 0, 0.2), transparent);
-            height: 1px;
-            width: 100%;
-            animation: moveLine 8s linear infinite;
-        }
-
-        @keyframes moveLine {
-            0% { transform: translateY(-100vh) skewY(-5deg); }
-            100% { transform: translateY(100vh) skewY(-5deg); }
-        }
-
-        /* Refined Brutalist Card */
-        .m-card {
-            background: var(--surface);
-            color: var(--text);
-            border: var(--border-width) solid #000;
-            box-shadow: 6px 6px 0px #000;
-            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-        }
-        
-        .m-card-dark {
-            background: #111;
-            color: white;
-            border: var(--border-width) solid white;
-            box-shadow: 6px 6px 0px white;
-        }
-
-        .m-button {
-            background: var(--surface);
-            color: var(--text);
-            border: var(--border-width) solid #000;
-            box-shadow: 4px 4px 0px #000;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .m-button:hover:not(:disabled) {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0px #000;
-            background: var(--accent);
-        }
-
-        .m-button:active:not(:disabled) {
-            transform: translate(2px, 2px);
-            box-shadow: 1px 1px 0px #000;
-        }
-        
-        .m-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #ccc;
-        }
-
-        .glass-panel {
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .view-section {
-            display: none;
-            height: 100vh;
-            width: 100vw;
-            position: absolute;
-            top: 0;
-            left: 0;
-            padding: 4rem;
-        }
-
-        .active { display: flex; flex-direction: column; animation: fadeIn 0.4s ease-out; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* HUD Refinement */
-        .hud-bar {
-            height: 4px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 2px;
-            overflow: hidden;
-            position: relative;
-            width: 100%;
-        }
-
-        .hud-bar-fill {
-            height: 100%;
-            background: var(--accent);
-            box-shadow: 0 0 15px var(--accent);
-            position: absolute;
-            left: 0;
-            top: 0;
-            transition: width 0.3s ease;
-        }
-
-        .nav-link {
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.25em;
-            opacity: 0.4;
-            transition: all 0.3s;
-            cursor: pointer;
-            padding: 0.5rem 0;
-            position: relative;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            left: -1rem;
-            top: 50%;
-            width: 0px;
-            height: 2px;
-            background: var(--accent);
-            transition: width 0.3s;
-        }
-
-        .nav-link:hover, .nav-link.active-link { opacity: 1; color: var(--accent); }
-        .nav-link.active-link::after { width: 12px; }
-        
-        .driver-card {
-            border: 2px solid rgba(255,255,255,0.1);
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .driver-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.05); }
-        .driver-card.selected { border-color: var(--accent); background: var(--accent); color: black; box-shadow: 4px 4px 0px white; }
-
-        /* Hide race canvas visually but keep it working */
-        #race-canvas { position: absolute; inset: 0; width: 100%; height: 100%; filter: grayscale(100%) contrast(1.5) opacity(0.2); z-index: 1; pointer-events: none; }
-        #minimap-canvas { position: absolute; bottom: 2rem; right: 2rem; z-index: 20; border: 2px solid white; background: rgba(0,0,0,0.8); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoiseDNA — Smart City Noise Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <!-- Animated Background -->
-    <div class="bg-lines" id="bg-lines"></div>
-
-    <!-- GLOBAL NAVIGATION -->
-    <nav id="global-nav" class="fixed top-12 left-12 z-[100] flex flex-col gap-6">
-        <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 bg-white flex items-center justify-center border-2 border-black shadow-[2px_2px_0px_#000]">
-                <div class="w-4 h-4 bg-black rotate-45"></div>
-            </div>
-            <span class="font-black text-xl italic tracking-tighter">NEO_GP</span>
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <i class="fas fa-waveform"></i>
         </div>
-        <div class="nav-link active-link" onclick="if(window.showScreen) showScreen(screens.menu)">HOME_ROOT</div>
-        <div class="nav-link" onclick="if(window.game && game.selectedId) showScreen(screens.hub)">CAREER_HUB</div>
-        <div class="nav-link" onclick="openSettings()">SYSTEM_SET</div>
-    </nav>
-
-    <!-- 1. MAIN MENU -->
-    <div id="main-menu-screen" class="view-section active justify-center pl-[20vw]">
-        <div class="max-w-5xl">
-            <div class="flex items-center gap-4 mb-2">
-                <span class="mono text-xs text-[var(--accent)] font-bold">LATEST_BUILD: 2.9.44_STABLE</span>
-                <div class="h-[1px] w-24 bg-white/20"></div>
-            </div>
-            <h1 class="text-[12rem] font-[900] leading-[0.8] tracking-tighter mb-12">NEO<br>GP<span class="text-xs align-top mono font-normal ml-6 tracking-widest opacity-40 uppercase">Global Motorsport Terminal</span></h1>
-            
-            <div class="flex gap-6">
-                <button id="start-btn" class="m-button bg-[var(--accent)] px-12 py-5 text-xl">ENTER_SIMULATION</button>
-                <button onclick="openSettings()" class="m-button px-10 py-5 text-xl">OPTIONS</button>
-            </div>
+        <div class="logo-text">
+          <span class="logo-title">NoiseDNA</span>
+          <span class="logo-subtitle">Smart City Platform</span>
         </div>
+      </div>
     </div>
-
-    <!-- 2. START CHOICE -->
-    <div id="start-choice-screen" class="view-section justify-center pl-[20vw]">
-        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">SELECT_MODE</h2>
-        <div class="flex gap-6">
-            <div onclick="document.getElementById('mode-offline-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80 transition-colors">
-                <h3 class="font-black text-3xl mb-4">OFFLINE</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Career & Quick Race</p>
-                <div class="w-full h-1 bg-[var(--accent)] mt-auto transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform"></div>
-                <button id="mode-offline-btn" class="hidden"></button>
-            </div>
-            <div class="glass-panel p-8 cursor-not-allowed group w-80 opacity-30">
-                <h3 class="font-black text-3xl mb-4">ONLINE</h3>
-                <p class="mono text-xs mb-8">Multiplayer (Disabled)</p>
-                <button id="mode-online-btn" class="hidden"></button>
-            </div>
-        </div>
-        <button onclick="showScreen(screens.menu)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK_ROOT</button>
+    <div class="sidebar-nav">
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <i class="fas fa-gauge-high"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="nav-item" data-section="map">
+        <i class="fas fa-map-location-dot"></i>
+        <span>Live Map</span>
+      </a>
+      <a href="#" class="nav-item" data-section="forecast">
+        <i class="fas fa-chart-line"></i>
+        <span>Forecast</span>
+      </a>
+      <a href="#" class="nav-item" data-section="routes">
+        <i class="fas fa-route"></i>
+        <span>Quiet Routes</span>
+      </a>
+      <a href="#" class="nav-item" data-section="greenbarrier">
+        <i class="fas fa-seedling"></i>
+        <span>Green Barrier</span>
+      </a>
+      <a href="#" class="nav-item" data-section="advisor">
+        <i class="fas fa-building"></i>
+        <span>Building Advisor</span>
+      </a>
+      <a href="#" class="nav-item" data-section="zones">
+        <i class="fas fa-shield-halved"></i>
+        <span>Sensitive Zones</span>
+      </a>
+      <a href="#" class="nav-item" data-section="planner">
+        <i class="fas fa-city"></i>
+        <span>City Planner</span>
+      </a>
+      <a href="#" class="nav-item" data-section="science">
+        <i class="fas fa-flask"></i>
+        <span>Science Fair</span>
+      </a>
     </div>
-
-    <!-- 3. OFFLINE LANDING -->
-    <div id="offline-landing-screen" class="view-section justify-center pl-[20vw]">
-        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">OFFLINE_DB</h2>
-        <div class="flex gap-6">
-            <div onclick="document.getElementById('offline-career-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-[var(--accent)] hover:text-black w-80 transition-colors border-2 border-transparent hover:border-black hover:shadow-[8px_8px_0px_white]">
-                <h3 class="font-black text-3xl mb-4">CAREER</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Legacy Campaign</p>
-                <button id="offline-career-btn" class="hidden"></button>
-            </div>
-            <div onclick="document.getElementById('quick-race-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80 transition-colors">
-                <h3 class="font-black text-3xl mb-4">QUICK_RACE</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Instant Action</p>
-                <button id="quick-race-btn" class="hidden"></button>
-            </div>
-        </div>
-        <button onclick="showScreen(screens.startChoice)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK</button>
+    <div class="sidebar-footer">
+      <div class="sidebar-status">
+        <span class="status-dot"></span>
+        <span>v2.4.1 · AI Active</span>
+      </div>
     </div>
+  </nav>
 
-    <!-- 4. CAREER TYPE -->
-    <div id="career-type-screen" class="view-section justify-center pl-[20vw]">
-        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">CAREER_TYPE</h2>
-        <div class="flex gap-6">
-            <div onclick="document.getElementById('type-player-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80">
-                <h3 class="font-black text-3xl mb-4">DRIVER</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Focus on driving and stats.</p>
-                <button id="type-player-btn" class="hidden"></button>
-            </div>
-            <div onclick="document.getElementById('type-champ-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-80">
-                <h3 class="font-black text-3xl mb-4">MANAGER</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Manage team and strategy.</p>
-                <button id="type-champ-btn" class="hidden"></button>
-            </div>
-        </div>
-        <button onclick="showScreen(screens.offlineLanding)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK</button>
-    </div>
+  <!-- Mobile Nav Toggle -->
+  <button class="mobile-toggle" id="mobileToggle">
+    <i class="fas fa-bars"></i>
+  </button>
 
-    <!-- 5. CAREER CHOICE -->
-    <div id="career-choice-screen" class="view-section justify-center pl-[20vw]">
-        <h2 class="text-6xl font-[800] italic tracking-tighter mb-12">TEAM_SETUP</h2>
-        <div class="flex gap-6">
-            <div onclick="document.getElementById('career-real-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-72">
-                <h3 class="font-black text-2xl mb-4">REAL_ROSTER</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Pick existing 2026 driver.</p>
-                <button id="career-real-btn" class="hidden"></button>
-            </div>
-            <div onclick="document.getElementById('career-custom-btn').click()" class="glass-panel p-8 cursor-pointer group hover:bg-[var(--accent)] hover:text-black w-72">
-                <h3 class="font-black text-2xl mb-4">CUSTOM_TEAM</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Create 11th team.</p>
-                <button id="career-custom-btn" class="hidden"></button>
-            </div>
-            <div onclick="showCreateDriver()" class="glass-panel p-8 cursor-pointer group hover:bg-white hover:text-black w-72">
-                <h3 class="font-black text-2xl mb-4">CUSTOM_DRIVER</h3>
-                <p class="mono text-xs opacity-50 mb-8 group-hover:opacity-100">Join existing team.</p>
-            </div>
-        </div>
-        <button onclick="showScreen(screens.typeChoice)" class="m-button mt-12 px-8 py-3 w-max text-sm">BACK</button>
-    </div>
+  <!-- Main Content -->
+  <main class="main-content" id="mainContent">
 
-    <!-- 6. CREATE TEAM -->
-    <div id="create-team-screen" class="view-section justify-center pl-[20vw]">
-        <h2 class="text-6xl font-[800] italic tracking-tighter mb-8">INIT_TEAM</h2>
-        <div class="glass-panel p-8 max-w-2xl w-full">
-            <div class="grid grid-cols-2 gap-6 mb-8">
-                <div>
-                    <label class="mono text-xs opacity-50 mb-2 block">DRIVER_NAME</label>
-                    <input type="text" id="input-driver-name" class="w-full bg-black border-2 border-white/20 p-3 text-white focus:border-[var(--accent)] outline-none" placeholder="Alex Cross">
-                </div>
-                <div>
-                    <label class="mono text-xs opacity-50 mb-2 block">TEAM_NAME</label>
-                    <input type="text" id="input-team-name" class="w-full bg-black border-2 border-white/20 p-3 text-white focus:border-[var(--accent)] outline-none" placeholder="Apex Racing">
-                </div>
-            </div>
-            <div class="mb-8">
-                <label class="mono text-xs opacity-50 mb-2 block">TEAM_LIVERY_COLOR</label>
-                <input type="color" id="input-team-color" value="#EBFF00" class="w-full h-12 bg-transparent cursor-pointer">
-            </div>
-            <div class="mb-8">
-                <label class="mono text-xs opacity-50 mb-2 block flex justify-between"><span>STATS_ALLOCATION</span><span id="points-left" class="text-[var(--accent)]">(10 pts)</span></label>
-                <div class="grid grid-cols-3 gap-4 text-center">
-                    <div class="bg-black border border-white/10 p-4">
-                        <div class="mono text-[10px] mb-2 opacity-50">PACE</div>
-                        <div class="flex items-center justify-between">
-                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="pac" data-dir="-1">-</button>
-                            <span id="alloc-pac" class="font-bold text-xl">75</span>
-                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="pac" data-dir="1">+</button>
-                        </div>
-                    </div>
-                    <div class="bg-black border border-white/10 p-4">
-                        <div class="mono text-[10px] mb-2 opacity-50">RACECRAFT</div>
-                        <div class="flex items-center justify-between">
-                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="rac" data-dir="-1">-</button>
-                            <span id="alloc-rac" class="font-bold text-xl">75</span>
-                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="rac" data-dir="1">+</button>
-                        </div>
-                    </div>
-                    <div class="bg-black border border-white/10 p-4">
-                        <div class="mono text-[10px] mb-2 opacity-50">AWARENESS</div>
-                        <div class="flex items-center justify-between">
-                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="awa" data-dir="-1">-</button>
-                            <span id="alloc-awa" class="font-bold text-xl">75</span>
-                            <button class="alloc-btn text-xl hover:text-[var(--accent)]" data-stat="awa" data-dir="1">+</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="flex gap-4">
-                <button id="confirm-create-btn" class="m-button bg-[var(--accent)] px-8 py-3 flex-grow">START_CAMPAIGN</button>
-                <button id="back-create-btn" class="m-button px-8 py-3">CANCEL</button>
-            </div>
-        </div>
-    </div>
+    <!-- ==================== DASHBOARD ==================== -->
+    <section class="page-section active" id="page-dashboard">
+      <div class="page-header">
+        <h1>City Noise Intelligence Dashboard</h1>
+        <p class="page-subtitle">Real-time noise monitoring and predictive analytics for smart cities</p>
+      </div>
 
-    <!-- 7. SELECTION -->
-    <div id="selection-screen" class="view-section pl-[20vw] pt-[15vh]">
-        <h2 class="text-6xl font-[800] italic tracking-tighter mb-8">ROSTER_DB</h2>
-        <div id="driver-grid" class="grid grid-cols-4 gap-4 overflow-y-auto max-h-[60vh] pr-4 pb-12">
-            <!-- Populated by JS -->
-        </div>
-        <div class="fixed bottom-12 right-12 flex gap-4 bg-black/80 p-4 backdrop-blur-md border border-white/10">
-            <button id="back-select-btn" class="m-button px-8 py-3">BACK</button>
-            <button id="confirm-driver-btn" class="m-button bg-[var(--accent)] px-8 py-3" disabled>CONFIRM_SELECTION</button>
-        </div>
-    </div>
-
-    <!-- 8. CAREER HUB -->
-    <div id="career-hub-screen" class="view-section pl-[20vw] pt-[15vh]">
-        <div class="flex justify-between items-end mb-12">
-            <div>
-                <h2 class="text-7xl font-[900] italic tracking-tighter">CAREER_HUB</h2>
-                <p id="season-info" class="mono text-sm opacity-50 tracking-widest uppercase mt-2">ROUND 1 OF 24 — MELBOURNE</p>
-            </div>
-            <div class="text-right">
-                <div class="mono text-xs opacity-50 mb-1">TEAM_BUDGET</div>
-                <div id="currency-display" class="font-black text-4xl text-[var(--accent)]">$25,000</div>
-            </div>
+      <div class="dashboard-grid">
+        <div class="card noise-gauge-card">
+          <div class="card-header">
+            <span>Current Average Noise Level</span>
+            <span class="badge live-badge"><span class="live-dot"></span> LIVE</span>
+          </div>
+          <div class="gauge-container">
+            <canvas id="noiseGauge" width="280" height="160"></canvas>
+            <div class="gauge-value" id="gaugeValue">67</div>
+            <div class="gauge-unit">dB</div>
+          </div>
+          <div class="gauge-labels">
+            <span>0 dB</span>
+            <span>140 dB</span>
+          </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-8 max-w-6xl mb-12">
-            <div id="hub-driver-panel" class="glass-panel p-8 relative overflow-hidden group">
-                <!-- Driver injected here -->
+        <div class="card risk-card">
+          <div class="card-header">
+            <span>Noise Risk Status</span>
+          </div>
+          <div class="risk-indicator" id="riskIndicator">
+            <div class="risk-ring">
+              <div class="risk-ring-segment quiet"></div>
+              <div class="risk-ring-segment moderate"></div>
+              <div class="risk-ring-segment loud"></div>
+              <div class="risk-ring-segment dangerous"></div>
             </div>
-            <div id="hub-car-panel" class="glass-panel p-8 border-l-4 border-[var(--accent)]">
-                <!-- Car injected here -->
-            </div>
+          </div>
+          <div class="risk-status" id="riskStatus">
+            <div class="risk-icon"><i class="fas fa-volume-high"></i></div>
+            <div class="risk-label">Moderate</div>
+            <div class="risk-desc">Caution advised in high-traffic areas</div>
+          </div>
+          <div class="risk-legend">
+            <span><span class="dot quiet-dot"></span> Quiet ≤50</span>
+            <span><span class="dot moderate-dot"></span> Moderate 51–65</span>
+            <span><span class="dot loud-dot"></span> Loud 66–80</span>
+            <span><span class="dot dangerous-dot"></span> Dangerous >80</span>
+          </div>
         </div>
 
-        <div class="flex gap-6 fixed bottom-12 right-12">
-            <button id="menu-from-hub-btn" class="m-button px-6 py-4">SYS_MENU</button>
-            <button id="standings-btn" class="m-button px-6 py-4">WDC_STANDINGS</button>
-            <button id="shop-btn" class="m-button px-6 py-4">R&D_UPGRADES</button>
-            <button id="race-btn" class="m-button bg-[var(--accent)] px-10 py-4 text-xl">DEPLOY_TO_TRACK</button>
+        <div class="card quick-stats-card">
+          <div class="card-header">
+            <span>Quick Stats</span>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(6,182,212,0.15)"><i class="fas fa-microphone" style="color:#06B6D4"></i></div>
+              <div class="stat-info">
+                <span class="stat-value" id="statPeak">82</span>
+                <span class="stat-label">Peak (dB)</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(16,185,129,0.15)"><i class="fas fa-volume-low" style="color:#10B981"></i></div>
+              <div class="stat-info">
+                <span class="stat-value" id="statLow">42</span>
+                <span class="stat-label">Low (dB)</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(245,158,11,0.15)"><i class="fas fa-clock" style="color:#F59E0B"></i></div>
+              <div class="stat-info">
+                <span class="stat-value" id="statAvg">67</span>
+                <span class="stat-label">24h Avg (dB)</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(239,68,68,0.15)"><i class="fas fa-triangle-exclamation" style="color:#EF4444"></i></div>
+              <div class="stat-info">
+                <span class="stat-value" id="statAlerts">3</span>
+                <span class="stat-label">Active Alerts</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(168,85,247,0.15)"><i class="fas fa-tree" style="color:#A855F7"></i></div>
+              <div class="stat-info">
+                <span class="stat-value">1,247</span>
+                <span class="stat-label">Trees Planted</span>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(236,72,153,0.15)"><i class="fas fa-people-group" style="color:#EC4899"></i></div>
+              <div class="stat-info">
+                <span class="stat-value">2.4M</span>
+                <span class="stat-label">People Protected</span>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
 
-    <!-- 9. RACE SCREEN -->
-    <div id="race-screen" class="view-section !p-0 overflow-hidden bg-black">
-        <canvas id="race-canvas"></canvas>
-        <canvas id="minimap-canvas" width="220" height="140"></canvas>
-        
-        <!-- NEO-GP STYLE HUD -->
-        <div id="race-hud" class="absolute inset-0 z-10 pointer-events-none p-12 flex flex-col justify-between">
-            <div class="flex justify-between items-start">
-                <div class="flex gap-12">
-                    <div class="glass-panel p-4 px-6 border-l-4 border-white backdrop-blur-md bg-black/40">
-                        <div class="mono text-[10px] opacity-50 mb-1">POS</div>
-                        <div class="flex items-baseline gap-1">
-                            <span id="hud-pos" class="text-6xl font-black italic leading-none">1/20</span>
-                        </div>
-                    </div>
-                    <div class="glass-panel p-4 px-6 backdrop-blur-md bg-black/40">
-                        <div class="mono text-[10px] opacity-50 mb-1">LAP</div>
-                        <div id="hud-lap" class="text-5xl font-black italic leading-none">1/3</div>
-                    </div>
-                </div>
-                <div class="text-right glass-panel p-4 px-6 backdrop-blur-md bg-black/40">
-                    <div class="mono text-[10px] opacity-50 mb-1">SESSION_TIME</div>
-                    <div id="hud-time" class="mono text-3xl font-black mb-1">00:00.000</div>
-                    <div id="hud-penalties" class="text-red-500 font-black text-sm italic h-4"></div>
-                </div>
-            </div>
-
-            <div class="w-full flex justify-center pointer-events-auto">
-                <div id="race-prompt" class="text-7xl font-black italic text-[var(--accent)] drop-shadow-[0_0_20px_rgba(235,255,0,0.5)] tracking-tighter"></div>
-                <div id="flag-indicator" class="hidden absolute top-32 px-8 py-2 bg-yellow-400 text-black font-black text-2xl italic tracking-widest">YELLOW FLAG</div>
-            </div>
-
-            <div class="flex items-end justify-between">
-                <div class="w-80 flex flex-col gap-6 glass-panel p-6 backdrop-blur-md bg-black/40">
-                    <div>
-                        <div class="flex justify-between mono text-[10px] mb-2 uppercase opacity-60">
-                            <span>CAR_HEALTH</span>
-                        </div>
-                        <div class="hud-bar"><div id="damage-bar" class="hud-bar-fill w-[100%] bg-green-400 shadow-[0_0_10px_#4ade80]"></div></div>
-                    </div>
-                    <div class="flex gap-4 pointer-events-auto">
-                        <button id="ovr-btn" class="m-button flex-1 py-3 bg-blue-600 text-white border-blue-400 text-sm opacity-50">OVR_MODE</button>
-                        <button id="pit-btn" class="m-button flex-1 py-3 hidden">BOX_BOX</button>
-                    </div>
-                </div>
-                
-                <div class="text-center">
-                    <div class="mb-2">
-                        <span id="hud-speed" class="text-[10rem] font-[800] italic leading-none tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">0</span>
-                        <div class="mono text-lg font-bold tracking-[0.5em] mt-0 opacity-40">KM_H</div>
-                    </div>
-                </div>
-
-                <div class="w-80 flex flex-col items-end gap-6">
-                    <button id="settings-btn" class="m-button px-4 py-2 pointer-events-auto text-xs">PAUSE_SIM</button>
-                </div>
-            </div>
-            
-            <!-- Mobile touch controls (Invisible but active) -->
-            <div id="touch-controls" class="absolute inset-0 z-20 hidden pointer-events-auto">
-                <div class="absolute left-0 bottom-0 w-1/3 h-1/2 flex gap-2 p-4">
-                    <button id="touch-brake" class="flex-1 bg-red-500/20 active:bg-red-500/50 rounded-lg border border-red-500/30"></button>
-                    <button id="touch-gas" class="flex-1 bg-green-500/20 active:bg-green-500/50 rounded-lg border border-green-500/30"></button>
-                </div>
-                <div class="absolute right-0 bottom-0 w-1/3 h-1/2 p-4 flex items-center">
-                    <div id="steering-slider-container" class="w-full h-16 bg-white/10 rounded-full relative overflow-hidden border border-white/20">
-                        <div id="steering-slider-knob" class="absolute top-0 left-[50%] -ml-8 w-16 h-16 bg-white rounded-full shadow-[0_0_15px_white]"></div>
-                    </div>
-                </div>
-            </div>
+        <div class="card source-card">
+          <div class="card-header">
+            <span>Noise Source Distribution</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="sourceChart"></canvas>
+          </div>
+          <div class="source-legend" id="sourceLegend"></div>
         </div>
-    </div>
 
-    <!-- MODAL OVERLAY -->
-    <div id="modal-overlay" class="hidden fixed inset-0 z-[500] bg-black/90 flex items-center justify-center p-8 backdrop-blur-md">
-        <div id="modal-content" class="m-card-dark p-10 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
-            <!-- Modal Content Injected Here -->
+        <div class="card hourly-card">
+          <div class="card-header">
+            <span>24-Hour Noise Trend</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="hourlyChart"></canvas>
+          </div>
         </div>
-    </div>
 
-    <!-- Dummies for unused screens to avoid JS errors -->
-    <div id="online-lobby-screen" class="view-section"></div>
+        <div class="card alerts-card">
+          <div class="card-header">
+            <span>Active Noise Alerts</span>
+          </div>
+          <div class="alerts-list">
+            <div class="alert-item danger">
+              <div class="alert-icon"><i class="fas fa-building"></i></div>
+              <div class="alert-info">
+                <span class="alert-location">Downtown Financial District</span>
+                <span class="alert-desc">Construction noise exceeding limits · 87 dB</span>
+              </div>
+              <span class="alert-time">2 min ago</span>
+            </div>
+            <div class="alert-item warning">
+              <div class="alert-icon"><i class="fas fa-road"></i></div>
+              <div class="alert-info">
+                <span class="alert-location">I-95 Express Corridor</span>
+                <span class="alert-desc">Traffic surge detected · 79 dB</span>
+              </div>
+              <span class="alert-time">15 min ago</span>
+            </div>
+            <div class="alert-item warning">
+              <div class="alert-icon"><i class="fas fa-train"></i></div>
+              <div class="alert-info">
+                <span class="alert-location">Union Station Area</span>
+                <span class="alert-desc">Railway activity peak · 76 dB</span>
+              </div>
+              <span class="alert-time">42 min ago</span>
+            </div>
+            <div class="alert-item info">
+              <div class="alert-icon"><i class="fas fa-microphone"></i></div>
+              <div class="alert-info">
+                <span class="alert-location">City Hall Sensor #A7</span>
+                <span class="alert-desc">Sensor recalibrated · Normal readings</span>
+              </div>
+              <span class="alert-time">1h ago</span>
+            </div>
+            <div class="alert-item success">
+              <div class="alert-icon"><i class="fas fa-check-circle"></i></div>
+              <div class="alert-info">
+                <span class="alert-location">Riverside Park</span>
+                <span class="alert-desc">Noise levels normalized after intervention</span>
+              </div>
+              <span class="alert-time">3h ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <script src="data.js"></script>
-    <script src="game.js"></script>
-    
-    <!-- NEO-GP UI OVERRIDES -->
-    <script>
-        // Start background animation
-        const bg = document.getElementById('bg-lines');
-        for (let i = 0; i < 20; i++) {
-            const line = document.createElement('div');
-            line.className = 'line';
-            line.style.top = Math.random() * 100 + 'vh';
-            line.style.animationDelay = (Math.random() * 8) + 's';
-            line.style.opacity = Math.random() * 0.5;
-            bg.appendChild(line);
-        }
+    <!-- ==================== LIVE MAP ==================== -->
+    <section class="page-section" id="page-map">
+      <div class="page-header">
+        <h1>Live Noise Map</h1>
+        <p class="page-subtitle">Real-time noise hotspot visualization with intensity gradients</p>
+      </div>
+      <div class="map-container">
+        <div id="noiseMap"></div>
+        <div class="map-overlay">
+          <div class="map-legend">
+            <span class="map-legend-title">Noise Intensity</span>
+            <div class="map-legend-gradient">
+              <span>30 dB</span>
+              <span>60 dB</span>
+              <span>90 dB</span>
+              <span>120 dB</span>
+            </div>
+            <div class="map-legend-bar"></div>
+          </div>
+          <div class="map-controls">
+            <button class="map-btn active" data-layer="noise"><i class="fas fa-fire"></i> Heatmap</button>
+            <button class="map-btn" data-layer="traffic"><i class="fas fa-car"></i> Traffic</button>
+            <button class="map-btn" data-layer="zones"><i class="fas fa-shield"></i> Zones</button>
+            <button class="map-btn" data-layer="sensors"><i class="fas fa-circle-dot"></i> Sensors</button>
+          </div>
+          <div class="map-stats">
+            <div><span class="map-stat-label">Hotspots</span><span class="map-stat-value" id="mapHotspots">24</span></div>
+            <div><span class="map-stat-label">Max</span><span class="map-stat-value" id="mapMax">94 dB</span></div>
+            <div><span class="map-stat-label">Active Sensors</span><span class="map-stat-value" id="mapSensors">156</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        // Enable touch controls on mobile devices
-        if('ontouchstart' in window) {
-            document.getElementById('touch-controls').classList.remove('hidden');
-        }
+    <!-- ==================== FORECAST ==================== -->
+    <section class="page-section" id="page-forecast">
+      <div class="page-header">
+        <h1>Noise Forecast System</h1>
+        <p class="page-subtitle">AI-powered noise predictions powered by temporal pattern analysis</p>
+      </div>
 
-        // Override renderHub to match NeoGP styling
-        window.renderHub = function() {
-            const drivers = getDrivers();
-            const d = drivers.find(dr => dr.id === game.selectedId);
-            if (!d) return;
-            const stats = getPlayerStats(d);
-            const round = game.round || 0;
-            const cal = getCalendar();
-            const race = cal[Math.min(round, cal.length-1)];
-            
-            document.getElementById('currency-display').textContent = `$${game.currency.toLocaleString()}`;
-            document.getElementById('season-info').textContent = `ROUND ${round+1} OF ${cal.length} — ${race.city.toUpperCase()}`;
-            
-            // Hub Panels
-            document.getElementById('hub-driver-panel').innerHTML = `
-                <div class="absolute -right-4 -top-4 text-8xl font-black opacity-[0.03] group-hover:opacity-10 transition-opacity italic">${d.ovr}</div>
-                <div class="mono text-xs opacity-50 mb-6 uppercase tracking-widest">ACTIVE_DRIVER</div>
-                <h3 class="font-black text-5xl leading-none mb-2" style="color:${d.color}">${d.name.toUpperCase()}</h3>
-                <p class="mono text-sm opacity-60 mb-8 uppercase">${d.team}</p>
-                
-                <div class="flex flex-col gap-4">
-                    <div>
-                        <div class="flex justify-between mono text-[10px] mb-1"><span>PACE</span><span class="font-bold">${stats.pac}</span></div>
-                        <div class="hud-bar"><div class="hud-bar-fill" style="width:${stats.pac}%; background:${d.color}; box-shadow: 0 0 10px ${d.color}"></div></div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between mono text-[10px] mb-1"><span>RACECRAFT</span><span class="font-bold">${stats.rac}</span></div>
-                        <div class="hud-bar"><div class="hud-bar-fill" style="width:${stats.rac}%; background:${d.color}; box-shadow: 0 0 10px ${d.color}"></div></div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between mono text-[10px] mb-1"><span>AWARENESS</span><span class="font-bold">${stats.awa}</span></div>
-                        <div class="hud-bar"><div class="hud-bar-fill" style="width:${stats.awa}%; background:${d.color}; box-shadow: 0 0 10px ${d.color}"></div></div>
-                    </div>
-                </div>
-                ${game.careerMode==='player'?`<button class="m-button w-full mt-8 py-3 text-sm bg-white text-black" onclick="simulateTraining()">EXECUTE_TRAINING</button>`:''}
-            `;
+      <div class="forecast-tabs">
+        <button class="forecast-tab active" data-period="today">Today</button>
+        <button class="forecast-tab" data-period="tomorrow">Tomorrow</button>
+        <button class="forecast-tab" data-period="week">This Week</button>
+      </div>
 
-            document.getElementById('hub-car-panel').innerHTML = `
-                <div class="mono text-xs opacity-50 mb-6 uppercase tracking-widest">TEAM_OPS</div>
-                <h3 class="font-black text-2xl mb-4">STRATEGY: <span class="text-[var(--accent)]">${game.careerMode==='champ'?'MANAGER':'CONTRACT'}</span></h3>
-                <div class="mt-4">
-                    ${game.careerMode==='champ' ? `
-                        <p class="mono text-xs opacity-60 mb-4">ACTIVE RACE DRIVER</p>
-                        <div class="flex flex-col gap-3 mb-6">
-                            ${game.teamDrivers.map((td,i) => `<button class="m-button w-full py-3 text-sm ${game.selectedId===td.id?'bg-[var(--accent)] text-black':'bg-black text-white border-white/20'}" onclick="pickChampDriver(${i})">${td.name.toUpperCase()}</button>`).join('')}
-                        </div>
-                        <button class="m-button w-full py-3 text-sm bg-[var(--green)] text-black" onclick="showPromoteF2()">PROMOTE_F2_TALENT</button>
-                    ` : `
-                        <p class="mono text-sm opacity-60 mb-8">OBJECTIVE: WDC_CHAMPIONSHIP</p>
-                        <button class="m-button w-full py-3 text-sm" onclick="checkContracts()">EVALUATE_CONTRACTS</button>
-                    `}
-                </div>
-            `;
-        };
+      <div class="forecast-grid">
+        <div class="card hourly-forecast-card">
+          <div class="card-header">
+            <span>Hourly Forecast</span>
+            <span class="badge"><i class="fas fa-robot"></i> AI Prediction</span>
+          </div>
+          <div class="forecast-timeline" id="forecastTimeline"></div>
+          <div class="chart-container" style="height:200px">
+            <canvas id="forecastChart"></canvas>
+          </div>
+        </div>
 
-        // Override renderDriverGrid
-        window.renderDriverGrid = function() {
-            const grid = document.getElementById('driver-grid');
-            grid.innerHTML = DRIVERS.map(d => `
-                <div class="driver-card" data-id="${d.id}" onclick="selectDriver(this, '${d.id}')">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-bold uppercase text-sm">${d.name}</span>
-                        <span class="font-black italic text-xl drop-shadow-md" style="color:${d.color}">${d.ovr}</span>
-                    </div>
-                    <div class="mono text-[10px] opacity-60 uppercase">${d.team}</div>
-                </div>
-            `).join('');
-        };
-        
-        window.selectDriver = function(el, id) {
-            document.querySelectorAll('.driver-card').forEach(c=>c.classList.remove('selected'));
-            el.classList.add('selected');
-            game.tempSelect = id;
-            const btn = document.getElementById('confirm-driver-btn');
-            btn.disabled = false;
-        };
+        <div class="card daily-forecast-card">
+          <div class="card-header">
+            <span>Daily Summary</span>
+          </div>
+          <div class="daily-cards" id="dailyCards"></div>
+        </div>
 
-        // Custom Show Modal styling for NeoGP
-        window.showModal = function(html) {
-            // Transform common elements in html to NeoGP styles
-            let styledHtml = html
-                .replace(/<h2>/g, '<h2 class="text-5xl font-[900] italic tracking-tighter mb-8 border-b-2 border-white/20 pb-4">')
-                .replace(/<h3>/g, '<h3 class="text-2xl font-[800] italic mb-4">')
-                .replace(/class="modal-buttons"/g, 'class="flex gap-4 mt-8 pt-6 border-t-2 border-white/20"')
-                .replace(/class="btn btn-primary"/g, 'class="m-button bg-[var(--accent)] text-black px-8 py-3 flex-grow"')
-                .replace(/class="btn btn-secondary"/g, 'class="m-button bg-white text-black px-8 py-3"')
-                .replace(/class="btn btn-secondary btn-small"/g, 'class="m-button bg-white text-black px-4 py-2 text-xs"')
-                .replace(/class="btn btn-accent btn-small"/g, 'class="m-button bg-[var(--accent)] text-black px-4 py-2 text-xs"')
-                .replace(/class="btn btn-green btn-small"/g, 'class="m-button bg-[var(--green)] text-black px-4 py-2 text-xs"')
-                .replace(/<table class="standings-table">/g, '<table class="w-full text-left mono text-sm border-collapse">')
-                .replace(/<thead>/g, '<thead class="bg-white/10 uppercase text-xs opacity-60">')
-                .replace(/<th>/g, '<th class="p-3">')
-                .replace(/<td>/g, '<td class="p-3 border-b border-white/10">')
-                .replace(/<tr class="highlight">/g, '<tr class="bg-[var(--accent)] text-black font-bold">')
-                .replace(/<div class="upgrade-grid">/g, '<div class="grid grid-cols-3 gap-6">')
-                .replace(/<div class="upgrade-col">/g, '<div class="flex flex-col gap-3 bg-white/5 p-4 border border-white/10">')
-                .replace(/<div class="results-list">/g, '<div class="flex flex-col gap-2 font-mono text-sm">')
-                .replace(/<p class="highlight">/g, '<p class="bg-[var(--accent)] text-black font-bold p-2">');
-                
-            modal.content.innerHTML = styledHtml;
-            modal.overlay.classList.remove('hidden');
-            modal.overlay.style.display = 'flex';
-        };
+        <div class="card forecast-insights">
+          <div class="card-header">
+            <span>AI Insights</span>
+          </div>
+          <div class="insights-list" id="insightsList">
+            <div class="insight-item">
+              <i class="fas fa-sun"></i>
+              <div>
+                <strong>Morning Dip</strong>
+                <p>Noise levels drop 40% between 2 AM – 5 AM. Optimal for maintenance.</p>
+              </div>
+            </div>
+            <div class="insight-item">
+              <i class="fas fa-clock"></i>
+              <div>
+                <strong>Rush Hour Spike</strong>
+                <p>Predicted 78 dB at 5 PM. Consider alternative routes.</p>
+              </div>
+            </div>
+            <div class="insight-item">
+              <i class="fas fa-calendar"></i>
+              <div>
+                <strong>Weekend Effect</strong>
+                <p>Weekend average 12 dB lower than weekdays.</p>
+              </div>
+            </div>
+            <div class="insight-item">
+              <i class="fas fa-umbrella"></i>
+              <div>
+                <strong>Weather Impact</strong>
+                <p>Rain expected Thu. Noise reduces 15% due to wet roads.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        window.hideModal = function() {
-            modal.overlay.classList.add('hidden');
-            modal.overlay.style.display = 'none';
-        };
+    <!-- ==================== QUIET ROUTES ==================== -->
+    <section class="page-section" id="page-routes">
+      <div class="page-header">
+        <h1>Quiet Route Navigation</h1>
+        <p class="page-subtitle">Find the most peaceful path through the city</p>
+      </div>
 
-    </script>
+      <div class="route-inputs">
+        <div class="route-input-group">
+          <div class="input-icon"><i class="fas fa-circle-dot" style="color:#10B981"></i></div>
+          <input type="text" class="route-input" id="routeStart" value="Central Station" placeholder="Start location...">
+        </div>
+        <div class="route-swap" id="routeSwap">
+          <i class="fas fa-arrow-right-arrow-left"></i>
+        </div>
+        <div class="route-input-group">
+          <div class="input-icon"><i class="fas fa-location-dot" style="color:#EF4444"></i></div>
+          <input type="text" class="route-input" id="routeEnd" value="Riverside Park" placeholder="Destination...">
+        </div>
+        <button class="route-find-btn" id="routeFindBtn">
+          <i class="fas fa-magnifying-glass"></i> Find Routes
+        </button>
+      </div>
+
+      <div class="route-results" id="routeResults">
+        <div class="route-card fastest" data-route="fastest">
+          <div class="route-type">
+            <i class="fas fa-bolt"></i>
+            <span>Fastest Route</span>
+          </div>
+          <div class="route-details">
+            <div class="route-detail">
+              <i class="fas fa-clock"></i>
+              <span>18 min</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-ruler"></i>
+              <span>4.2 km</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-volume-up"></i>
+              <span>72 dB avg</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-star"></i>
+              <span>Noise Score: 64</span>
+            </div>
+          </div>
+          <div class="route-bar" style="--pct:100%"></div>
+          <div class="route-select-btn">Select</div>
+        </div>
+
+        <div class="route-card balanced active" data-route="balanced">
+          <div class="route-type">
+            <i class="fas fa-scale-balanced"></i>
+            <span>Balanced Route</span>
+          </div>
+          <div class="route-details">
+            <div class="route-detail">
+              <i class="fas fa-clock"></i>
+              <span>24 min</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-ruler"></i>
+              <span>5.1 km</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-volume-up"></i>
+              <span>58 dB avg</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-star"></i>
+              <span>Noise Score: 82</span>
+            </div>
+          </div>
+          <div class="route-bar" style="--pct:72%"></div>
+          <div class="route-select-btn">Selected</div>
+        </div>
+
+        <div class="route-card quietest" data-route="quietest">
+          <div class="route-type">
+            <i class="fas fa-leaf"></i>
+            <span>Quietest Route</span>
+          </div>
+          <div class="route-details">
+            <div class="route-detail">
+              <i class="fas fa-clock"></i>
+              <span>32 min</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-ruler"></i>
+              <span>6.8 km</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-volume-up"></i>
+              <span>45 dB avg</span>
+            </div>
+            <div class="route-detail">
+              <i class="fas fa-star"></i>
+              <span>Noise Score: 94</span>
+            </div>
+          </div>
+          <div class="route-bar" style="--pct:52%"></div>
+          <div class="route-select-btn">Select</div>
+        </div>
+      </div>
+
+      <div class="route-map-mini" id="routeMiniMap">
+        <div class="route-map-placeholder">
+          <i class="fas fa-route"></i>
+          <span>Route visualization on map</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== GREEN BARRIER ==================== -->
+    <section class="page-section" id="page-greenbarrier">
+      <div class="page-header">
+        <h1>Green Barrier Simulator</h1>
+        <p class="page-subtitle">Simulate noise reduction using natural vegetation barriers</p>
+      </div>
+
+      <div class="barrier-grid">
+        <div class="card barrier-config">
+          <div class="card-header">
+            <span>Barrier Parameters</span>
+          </div>
+          <div class="barrier-form">
+            <div class="form-group">
+              <label>Barrier Type</label>
+              <select class="form-select" id="barrierType">
+                <option value="trees">Trees (Deciduous)</option>
+                <option value="hedges">Hedges (Evergreen)</option>
+                <option value="mixed" selected>Mixed Vegetation</option>
+                <option value="vertical">Vertical Garden</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Barrier Height: <span id="barrierHeightVal">5</span>m</label>
+              <input type="range" class="form-range" id="barrierHeight" min="1" max="20" value="5" step="0.5">
+            </div>
+            <div class="form-group">
+              <label>Barrier Width: <span id="barrierWidthVal">3</span>m</label>
+              <input type="range" class="form-range" id="barrierWidth" min="0.5" max="10" value="3" step="0.5">
+            </div>
+            <div class="form-group">
+              <label>Density: <span id="barrierDensityVal">80</span>%</label>
+              <input type="range" class="form-range" id="barrierDensity" min="20" max="100" value="80" step="5">
+            </div>
+            <div class="form-group">
+              <label>Distance from Source: <span id="barrierDistVal">10</span>m</label>
+              <input type="range" class="form-range" id="barrierDist" min="1" max="50" value="10" step="1">
+            </div>
+            <div class="form-group">
+              <label>Initial Noise Level: <span id="barrierInitVal">78</span> dB</label>
+              <input type="range" class="form-range" id="barrierInit" min="50" max="120" value="78" step="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="card barrier-visualization">
+          <div class="card-header">
+            <span>Visualization</span>
+          </div>
+          <div class="barrier-canvas-wrap">
+            <canvas id="barrierCanvas" width="400" height="300"></canvas>
+          </div>
+        </div>
+
+        <div class="card barrier-results">
+          <div class="card-header">
+            <span>Simulation Results</span>
+          </div>
+          <div class="barrier-results-grid">
+            <div class="result-compare">
+              <div class="result-before">
+                <span class="result-label">Current Noise</span>
+                <span class="result-db" id="resultBefore">78 dB</span>
+              </div>
+              <div class="result-vs">
+                <i class="fas fa-arrow-right"></i>
+              </div>
+              <div class="result-after">
+                <span class="result-label">Predicted Noise</span>
+                <span class="result-db" id="resultAfter">68 dB</span>
+              </div>
+            </div>
+            <div class="result-detail">
+              <div class="result-stat">
+                <span class="rs-label">Noise Reduction</span>
+                <span class="rs-value highlight" id="resultReduction">10 dB</span>
+              </div>
+              <div class="result-stat">
+                <span class="rs-label">Reduction %</span>
+                <span class="rs-value" id="resultPct">12.8%</span>
+              </div>
+              <div class="result-stat">
+                <span class="rs-label">Perceived Loudness</span>
+                <span class="rs-value" id="resultLoudness">50% quieter</span>
+              </div>
+              <div class="result-stat">
+                <span class="rs-label">Effectiveness</span>
+                <span class="rs-value" id="resultEffectiveness">High</span>
+              </div>
+            </div>
+            <div class="result-chart">
+              <canvas id="barrierResultChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== BUILDING ADVISOR ==================== -->
+    <section class="page-section" id="page-advisor">
+      <div class="page-header">
+        <h1>Smart Building Advisor</h1>
+        <p class="page-subtitle">AI-powered noise reduction recommendations for buildings</p>
+      </div>
+
+      <div class="advisor-grid">
+        <div class="card building-info">
+          <div class="card-header">
+            <span>Building Profile</span>
+          </div>
+          <div class="building-profile">
+            <div class="bp-field">
+              <label>Building Type</label>
+              <select class="form-select" id="buildingType">
+                <option value="residential">Residential</option>
+                <option value="school" selected>School</option>
+                <option value="hospital">Hospital</option>
+                <option value="office">Office Building</option>
+                <option value="library">Library</option>
+              </select>
+            </div>
+            <div class="bp-field">
+              <label>Floors</label>
+              <select class="form-select" id="buildingFloors">
+                <option>1–3</option>
+                <option selected>4–8</option>
+                <option>9–15</option>
+                <option>16+</option>
+              </select>
+            </div>
+            <div class="bp-field">
+              <label>Proximity to Road</label>
+              <select class="form-select" id="buildingProximity">
+                <option>Direct (0–10m)</option>
+                <option selected>Near (10–50m)</option>
+                <option>Moderate (50–200m)</option>
+                <option>Far (200m+)</option>
+              </select>
+            </div>
+            <div class="bp-field">
+              <label>Current Noise Level</label>
+              <span class="bp-noise" id="buildingCurrentNoise">62 dB</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card recommendations">
+          <div class="card-header">
+            <span>AI Recommendations</span>
+            <span class="badge"><i class="fas fa-brain"></i> AI Generated</span>
+          </div>
+          <div class="recs-list" id="recsList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== SENSITIVE ZONES ==================== -->
+    <section class="page-section" id="page-zones">
+      <div class="page-header">
+        <h1>Sensitive Zone Protection</h1>
+        <p class="page-subtitle">Monitoring and protecting noise-sensitive areas</p>
+      </div>
+
+      <div class="zones-grid">
+        <div class="card zone-card school">
+          <div class="zone-header">
+            <i class="fas fa-school"></i>
+            <span>Schools</span>
+          </div>
+          <div class="zone-body">
+            <div class="zone-stat">
+              <span>Current</span>
+              <span class="z-val zone-moderate">58 dB</span>
+            </div>
+            <div class="zone-stat">
+              <span>Predicted Peak</span>
+              <span class="z-val zone-loud">72 dB</span>
+            </div>
+            <div class="zone-stat">
+              <span>Risk Level</span>
+              <span class="z-badge moderate">Moderate</span>
+            </div>
+            <div class="zone-actions">
+              <strong>Recommended Actions:</strong>
+              <ul>
+                <li><i class="fas fa-tree"></i> Install tree barriers (NE side)</li>
+                <li><i class="fas fa-ban"></i> Restrict construction 8 AM – 3 PM</li>
+                <li><i class="fas fa-road"></i> Reroute trucks away from zone</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="card zone-card hospital">
+          <div class="zone-header">
+            <i class="fas fa-hospital"></i>
+            <span>Hospitals</span>
+          </div>
+          <div class="zone-body">
+            <div class="zone-stat">
+              <span>Current</span>
+              <span class="z-val zone-moderate">52 dB</span>
+            </div>
+            <div class="zone-stat">
+              <span>Predicted Peak</span>
+              <span class="z-val zone-moderate">65 dB</span>
+            </div>
+            <div class="zone-stat">
+              <span>Risk Level</span>
+              <span class="z-badge moderate">Moderate</span>
+            </div>
+            <div class="zone-actions">
+              <strong>Recommended Actions:</strong>
+              <ul>
+                <li><i class="fas fa-grip"></i> Acoustic barriers around ER entrance</li>
+                <li><i class="fas fa-leaf"></i> Green roof installation</li>
+                <li><i class="fas fa-volume-xmark"></i> Soundproof windows (ICU wing)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="card zone-card library">
+          <div class="zone-header">
+            <i class="fas fa-book"></i>
+            <span>Libraries</span>
+          </div>
+          <div class="zone-body">
+            <div class="zone-stat">
+              <span>Current</span>
+              <span class="z-val zone-quiet">38 dB</span>
+            </div>
+            <div class="zone-stat">
+              <span>Predicted Peak</span>
+              <span class="z-val zone-moderate">55 dB</span>
+            </div>
+            <div class="zone-stat">
+              <span>Risk Level</span>
+              <span class="z-badge low">Low</span>
+            </div>
+            <div class="zone-actions">
+              <strong>Recommended Actions:</strong>
+              <ul>
+                <li><i class="fas fa-tree"></i> Maintain existing green buffer</li>
+                <li><i class="fas fa-door-open"></i> Install acoustic entrance vestibule</li>
+                <li><i class="fas fa-clock"></i> Monitor during exam periods</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== CITY PLANNER ==================== -->
+    <section class="page-section" id="page-planner">
+      <div class="page-header">
+        <h1>Silent City Planner</h1>
+        <p class="page-subtitle">Simulate urban planning interventions and measure noise impact</p>
+      </div>
+
+      <div class="planner-grid">
+        <div class="card planner-controls">
+          <div class="card-header">
+            <span>Intervention Controls</span>
+          </div>
+          <div class="planner-controls-list" id="plannerControls">
+            <div class="planner-item">
+              <div class="planner-item-header">
+                <i class="fas fa-tree"></i>
+                <span>Tree Planting</span>
+              </div>
+              <div class="planner-slider-group">
+                <input type="range" class="planner-slider" data-target="trees" min="0" max="1000" value="200" step="10">
+                <span class="planner-val" id="plannerTreesVal">200 trees</span>
+              </div>
+            </div>
+            <div class="planner-item">
+              <div class="planner-item-header">
+                <i class="fas fa-grip"></i>
+                <span>Noise Barriers</span>
+              </div>
+              <div class="planner-slider-group">
+                <input type="range" class="planner-slider" data-target="walls" min="0" max="20" value="3" step="1">
+                <span class="planner-val" id="plannerWallsVal">3 km</span>
+              </div>
+            </div>
+            <div class="planner-item">
+              <div class="planner-item-header">
+                <i class="fas fa-bicycle"></i>
+                <span>Bike Lanes</span>
+              </div>
+              <div class="planner-slider-group">
+                <input type="range" class="planner-slider" data-target="bikes" min="0" max="50" value="8" step="1">
+                <span class="planner-val" id="plannerBikesVal">8 km</span>
+              </div>
+            </div>
+            <div class="planner-item">
+              <div class="planner-item-header">
+                <i class="fas fa-truck"></i>
+                <span>Traffic Diversion</span>
+              </div>
+              <div class="planner-slider-group">
+                <input type="range" class="planner-slider" data-target="traffic" min="0" max="40" value="5" step="1">
+                <span class="planner-val" id="plannerTrafficVal">5% diverted</span>
+              </div>
+            </div>
+            <div class="planner-item">
+              <div class="planner-item-header">
+                <i class="fas fa-building"></i>
+                <span>Green Roofs</span>
+              </div>
+              <div class="planner-slider-group">
+                <input type="range" class="planner-slider" data-target="roofs" min="0" max="100" value="15" step="5">
+                <span class="planner-val" id="plannerRoofsVal">15% coverage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card planner-results">
+          <div class="card-header">
+            <span>Impact Analysis</span>
+          </div>
+          <div class="planner-results-grid">
+            <div class="planner-stat">
+              <span class="ps-label">Before</span>
+              <span class="ps-value" id="plannerBefore">78 dB</span>
+            </div>
+            <div class="planner-stat">
+              <span class="ps-label">After</span>
+              <span class="ps-value success" id="plannerAfter">68 dB</span>
+            </div>
+            <div class="planner-stat">
+              <span class="ps-label">Reduction</span>
+              <span class="ps-value highlight" id="plannerReduction">10 dB</span>
+            </div>
+            <div class="planner-stat">
+              <span class="ps-label">Population Impacted</span>
+              <span class="ps-value" id="plannerPopulation">145,000</span>
+            </div>
+            <div class="planner-stat">
+              <span class="ps-label">Est. Cost</span>
+              <span class="ps-value" id="plannerCost">$2.4M</span>
+            </div>
+            <div class="planner-stat">
+              <span class="ps-label">Cost per dB</span>
+              <span class="ps-value" id="plannerCostPerDb">$240K</span>
+            </div>
+          </div>
+          <div class="planner-chart">
+            <canvas id="plannerChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== SCIENCE FAIR ==================== -->
+    <section class="page-section" id="page-science">
+      <div class="page-header">
+        <h1>Science Fair Showcase</h1>
+        <p class="page-subtitle">The science behind noise pollution and how NoiseDNA helps</p>
+      </div>
+
+      <div class="science-section">
+        <div class="card science-card">
+          <div class="science-icon"><i class="fas fa-circle-exclamation"></i></div>
+          <h2>The Problem</h2>
+          <p>Noise pollution is one of the most overlooked environmental hazards. Unlike air or water pollution, noise doesn't leave visible traces — but its impact on human health is profound. The World Health Organization (WHO) estimates that <strong>1.6 million healthy life years</strong> are lost annually in Western Europe alone due to noise-related health issues.</p>
+          <div class="science-stats">
+            <div class="ss-item">
+              <span class="ss-value">65M</span>
+              <span class="ss-label">People affected in the US</span>
+            </div>
+            <div class="ss-item">
+              <span class="ss-value">300%</span>
+              <span class="ss-label">Increased heart disease risk</span>
+            </div>
+            <div class="ss-item">
+              <span class="ss-value">45%</span>
+              <span class="ss-label">Sleep quality reduction</span>
+            </div>
+            <div class="ss-item">
+              <span class="ss-value">25%</span>
+              <span class="ss-label">Learning impairment in children</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card science-card">
+          <div class="science-icon"><i class="fas fa-flask"></i></div>
+          <h2>The Science</h2>
+          <div class="science-grid">
+            <div class="science-topic">
+              <h4><i class="fas fa-wave-square"></i> Sound Waves</h4>
+              <p>Noise propagates as pressure waves through air. Frequency (Hz) determines pitch, while amplitude (dB) determines loudness. The human ear perceives sound logarithmically — a 10 dB increase sounds twice as loud.</p>
+            </div>
+            <div class="science-topic">
+              <h4><i class="fas fa-chart-bar"></i> Signal Processing</h4>
+              <p>NoiseDNA uses FFT (Fast Fourier Transform) to decompose complex noise into frequency components. Machine learning classifiers identify sources by their spectral signatures.</p>
+            </div>
+            <div class="science-topic">
+              <h4><i class="fas fa-arrow-left"></i> Noise Reflection</h4>
+              <p>Hard surfaces (concrete, glass) reflect sound waves, creating echoes and amplifying noise. The reflection coefficient depends on material density and surface texture.</p>
+            </div>
+            <div class="science-topic">
+              <h4><i class="fas fa-circle-half-stroke"></i> Noise Absorption</h4>
+              <p>Porous materials and vegetation absorb sound energy by converting it to heat through friction. The absorption coefficient (α) ranges from 0 (perfect reflection) to 1 (perfect absorption).</p>
+            </div>
+          </div>
+          <div class="science-formula">
+            <span class="formula-title">Noise Attenuation Model:</span>
+            <div class="formula">L<sub>p</sub> = L<sub>w</sub> − 20·log<sub>10</sub>(r) − 8 + A<sub>barrier</sub> + A<sub>ground</sub></div>
+          </div>
+        </div>
+
+        <div class="card science-card">
+          <div class="science-icon"><i class="fas fa-microchip"></i></div>
+          <h2>The Solution</h2>
+          <div class="solution-steps">
+            <div class="solution-step">
+              <div class="step-number">1</div>
+              <div>
+                <strong>Monitor</strong>
+                <p>156 IoT sensors across the city collect real-time noise data every 5 seconds.</p>
+              </div>
+            </div>
+            <div class="solution-step">
+              <div class="step-number">2</div>
+              <div>
+                <strong>Analyze</strong>
+                <p>AI models classify noise sources and predict future hotspots using temporal pattern recognition.</p>
+              </div>
+            </div>
+            <div class="solution-step">
+              <div class="step-number">3</div>
+              <div>
+                <strong>Simulate</strong>
+                <p>Urban planners test interventions like green barriers, traffic rerouting, and building treatments.</p>
+              </div>
+            </div>
+            <div class="solution-step">
+              <div class="step-number">4</div>
+              <div>
+                <strong>Reduce</strong>
+                <p>Data-driven recommendations achieve 12–18 dB average noise reduction across pilot zones.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card science-card">
+          <div class="science-icon"><i class="fas fa-heart-pulse"></i></div>
+          <h2>The Impact</h2>
+          <div class="impact-grid">
+            <div class="impact-item">
+              <div class="impact-icon" style="background:rgba(16,185,129,0.15);color:#10B981">
+                <i class="fas fa-heart"></i>
+              </div>
+              <h4>Better Public Health</h4>
+              <p>Reduced stress, lower cardiovascular risk, and improved mental well-being for 2.4M residents.</p>
+            </div>
+            <div class="impact-item">
+              <div class="impact-icon" style="background:rgba(6,182,212,0.15);color:#06B6D4">
+                <i class="fas fa-graduation-cap"></i>
+              </div>
+              <h4>Improved Learning</h4>
+              <p>Quiet zones around 127 schools improve test scores by up to 15% and reduce classroom disruptions.</p>
+            </div>
+            <div class="impact-item">
+              <div class="impact-icon" style="background:rgba(168,85,247,0.15);color:#A855F7">
+                <i class="fas fa-bed"></i>
+              </div>
+              <h4>Better Sleep</h4>
+              <p>Night-time noise reduction of 8 dB improves sleep quality for 780,000 residents in affected areas.</p>
+            </div>
+            <div class="impact-item">
+              <div class="impact-icon" style="background:rgba(245,158,11,0.15);color:#F59E0B">
+                <i class="fas fa-city"></i>
+              </div>
+              <h4>Smarter Cities</h4>
+              <p>Data-driven planning saves $12M annually in noise complaint management and health-related costs.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
