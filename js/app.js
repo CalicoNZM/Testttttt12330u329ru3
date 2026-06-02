@@ -477,12 +477,15 @@
     buildingFloors: '4\u20138',
     buildingProximity: 'Near (10\u201350m)',
     planner: { trees: 200, walls: 3, bikes: 8, traffic: 5, roofs: 15 },
+    navMode: 'scroll',
+    sliderIndex: 0,
   };
 
   let gaugeCanvas, gaugeValue;
   let sourceChartInstance, hourlyChartInstance, forecastChartInstance, barrierResultChartInstance, plannerChartInstance;
   let mapInstance;
   let updateInterval;
+  const initializedSections = new Set();
 
   // ============================================================
   // INIT
@@ -498,6 +501,7 @@
     state.weeklyData = generateWeeklyData(state.currentNoise);
     state.hotspots = generateMapHotspots();
 
+    initModeSwitcher();
     initNavigation();
     initMobileToggle();
     initRouteSwap();
@@ -514,12 +518,57 @@
     renderBuildingAdvisor();
     renderPlanner();
 
+    setNavMode('scroll');
+
     setTimeout(initMap, 500);
 
     updateInterval = setInterval(() => {
       state.currentNoise = generateNoiseProfile(state.currentNoise, 2);
       updateDashboardValues();
     }, 5000);
+  }
+
+  // ============================================================
+  // MODE SWITCHER
+  // ============================================================
+
+  function initModeSwitcher() {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        setNavMode(btn.dataset.mode);
+      });
+    });
+  }
+
+  function setNavMode(mode) {
+    const body = document.body;
+    body.classList.remove('mode-scroll', 'mode-slider', 'mode-hub');
+    body.classList.add('mode-' + mode);
+
+    // Destroy current mode
+    if (state.navMode === 'slider') destroySliderMode();
+    if (state.navMode === 'hub') destroyHubMode();
+    if (state.navMode === 'scroll') destroyScrollMode();
+
+    state.navMode = mode;
+
+    // Init new mode
+    if (mode === 'scroll') initScrollMode();
+    else if (mode === 'slider') initSliderMode();
+    else if (mode === 'hub') initHubMode();
+
+    // Navigate to current section
+    const activeNav = document.querySelector('.nav-item.active') || document.querySelector('.nav-item');
+    if (activeNav) {
+      const section = activeNav.dataset.section;
+      navigateTo(section, true);
+    }
+
+    // Close mobile sidebar
+    document.getElementById('sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay')?.remove();
   }
 
   // ============================================================
@@ -537,18 +586,251 @@
     });
   }
 
-  function navigateTo(section) {
+  function navigateTo(section, silent) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelector(`.nav-item[data-section="${section}"]`)?.classList.add('active');
-    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-    const target = document.getElementById(`page-${section}`);
-    if (target) {
-      target.classList.add('active');
-      state.currentSection = section;
-      if (section === 'map' && mapInstance) {
-        setTimeout(() => mapInstance.invalidateSize(), 200);
+    state.currentSection = section;
+
+    const mode = state.navMode;
+    if (mode === 'scroll') {
+      const target = document.getElementById('page-' + section);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      initSectionOnce(section);
+    } else if (mode === 'slider') {
+      const allSections = document.querySelectorAll('.page-section');
+      let idx = 0;
+      allSections.forEach((s, i) => {
+        if (s.id === 'page-' + section) idx = i;
+      });
+      goToSlider(idx);
+    } else if (mode === 'hub') {
+      const overlay = document.getElementById('hubOverlay');
+      if (overlay.classList.contains('open')) {
+        closeHubOverlay();
+        setTimeout(() => openHubSection(section), 300);
+      } else {
+        openHubSection(section);
       }
     }
+
+    if (section === 'map' && mapInstance) {
+      setTimeout(() => mapInstance.invalidateSize(), 300);
+    }
+  }
+
+  function initSectionOnce(section) {
+    if (initializedSections.has(section)) return;
+    initializedSections.add(section);
+  }
+
+  // ============================================================
+  // MODE: SCROLL (IntersectionObserver)
+  // ============================================================
+
+  let scrollObserver = null;
+
+  function initScrollMode() {
+    scrollObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const section = entry.target.id.replace('page-', '');
+          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          document.querySelector(`.nav-item[data-section="${section}"]`)?.classList.add('active');
+        }
+      });
+    }, { threshold: 0.2, rootMargin: '-80px 0px 0px 0px' });
+
+    document.querySelectorAll('.page-section').forEach(s => scrollObserver.observe(s));
+  }
+
+  function destroyScrollMode() {
+    if (scrollObserver) {
+      scrollObserver.disconnect();
+      scrollObserver = null;
+    }
+  }
+
+  // ============================================================
+  // MODE: SLIDER (Carousel)
+  // ============================================================
+
+  function initSliderMode() {
+    const sections = document.querySelectorAll('.page-section');
+    sections.forEach((s, i) => {
+      s.classList.remove('slider-active', 'slider-exit-left', 'slider-exit-right');
+    });
+    state.sliderIndex = 0;
+    if (sections.length > 0) sections[0].classList.add('slider-active');
+    updateSliderControls();
+
+    document.getElementById('sliderPrev').addEventListener('click', () => goToSlider(state.sliderIndex - 1));
+    document.getElementById('sliderNext').addEventListener('click', () => goToSlider(state.sliderIndex + 1));
+
+    document.addEventListener('keydown', sliderKeyHandler);
+  }
+
+  function destroySliderMode() {
+    document.removeEventListener('keydown', sliderKeyHandler);
+  }
+
+  function sliderKeyHandler(e) {
+    if (state.navMode !== 'slider') return;
+    if (e.key === 'ArrowLeft') goToSlider(state.sliderIndex - 1);
+    else if (e.key === 'ArrowRight') goToSlider(state.sliderIndex + 1);
+  }
+
+  function goToSlider(index) {
+    const sections = document.querySelectorAll('.page-section');
+    if (index < 0 || index >= sections.length) return;
+    if (index === state.sliderIndex) return;
+
+    const current = sections[state.sliderIndex];
+    const next = sections[index];
+    const goingForward = index > state.sliderIndex;
+
+    current.classList.remove('slider-active');
+    current.classList.add(goingForward ? 'slider-exit-left' : 'slider-exit-right');
+
+    next.classList.remove('slider-exit-left', 'slider-exit-right');
+    next.classList.add('slider-active');
+
+    state.sliderIndex = index;
+    updateSliderControls();
+
+    const id = next.id.replace('page-', '');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelector(`.nav-item[data-section="${id}"]`)?.classList.add('active');
+    state.currentSection = id;
+
+    if (id === 'map' && mapInstance) setTimeout(() => mapInstance.invalidateSize(), 200);
+
+    // Cleanup exit classes after transition
+    setTimeout(() => {
+      current.classList.remove('slider-exit-left', 'slider-exit-right');
+    }, 400);
+  }
+
+  function updateSliderControls() {
+    const sections = document.querySelectorAll('.page-section');
+    const dots = document.getElementById('sliderDots');
+    dots.innerHTML = '';
+    sections.forEach((s, i) => {
+      const dot = document.createElement('button');
+      dot.className = 'slider-dot' + (i === state.sliderIndex ? ' active' : '');
+      dot.addEventListener('click', () => goToSlider(i));
+      dots.appendChild(dot);
+    });
+
+    document.getElementById('sliderPrev').disabled = state.sliderIndex === 0;
+    document.getElementById('sliderNext').disabled = state.sliderIndex === sections.length - 1;
+  }
+
+  // ============================================================
+  // MODE: HUB (Hub & Spoke)
+  // ============================================================
+
+  const HUB_SECTIONS = [
+    { id: 'dashboard', icon: 'fa-gauge-high', title: 'Dashboard', desc: 'Real-time noise monitoring and analytics' },
+    { id: 'map', icon: 'fa-map-location-dot', title: 'Live Map', desc: 'Interactive noise hotspot map' },
+    { id: 'forecast', icon: 'fa-chart-line', title: 'Forecast', desc: 'AI-powered noise predictions' },
+    { id: 'routes', icon: 'fa-route', title: 'Quiet Routes', desc: 'Find the quietest path through the city' },
+    { id: 'greenbarrier', icon: 'fa-seedling', title: 'Green Barrier', desc: 'Simulate vegetation noise barriers' },
+    { id: 'advisor', icon: 'fa-building', title: 'Building Advisor', desc: 'AI recommendations for buildings' },
+    { id: 'zones', icon: 'fa-shield-halved', title: 'Sensitive Zones', desc: 'Protect schools, hospitals, libraries' },
+    { id: 'planner', icon: 'fa-city', title: 'City Planner', desc: 'Test urban planning interventions' },
+    { id: 'science', icon: 'fa-flask', title: 'Science Fair', desc: 'The science behind noise pollution' },
+  ];
+
+  let hubInit = false;
+
+  function initHubMode() {
+    const mainContent = document.getElementById('mainContent');
+    let hubPage = document.querySelector('.hub-page');
+    if (!hubPage) {
+      hubPage = document.createElement('div');
+      hubPage.className = 'hub-page';
+      mainContent.prepend(hubPage);
+    }
+
+    hubPage.innerHTML = HUB_SECTIONS.map(s => `
+      <div class="hub-card" data-section="${s.id}">
+        <div class="hub-card-icon"><i class="fas ${s.icon}"></i></div>
+        <h3>${s.title}</h3>
+        <p>${s.desc}</p>
+      </div>
+    `).join('');
+
+    hubPage.querySelectorAll('.hub-card').forEach(card => {
+      card.addEventListener('click', () => {
+        navigateTo(card.dataset.section);
+      });
+    });
+
+    document.getElementById('hubClose').addEventListener('click', closeHubOverlay);
+    document.addEventListener('keydown', hubKeyHandler);
+    hubInit = true;
+  }
+
+  function destroyHubMode() {
+    document.removeEventListener('keydown', hubKeyHandler);
+    closeHubOverlay();
+  }
+
+  function hubKeyHandler(e) {
+    if (state.navMode !== 'hub') return;
+    if (e.key === 'Escape') closeHubOverlay();
+  }
+
+  function openHubSection(section) {
+    const overlay = document.getElementById('hubOverlay');
+    const body = document.getElementById('hubBody');
+    const title = document.getElementById('hubTitle');
+
+    const info = HUB_SECTIONS.find(s => s.id === section);
+    title.textContent = info ? info.title : 'Section';
+
+    // Clone the section content into the overlay
+    const source = document.getElementById('page-' + section);
+    if (source) {
+      body.innerHTML = source.innerHTML;
+      // Replace map container with placeholder in overlay
+      if (section === 'map') {
+        const mapContainer = body.querySelector('.map-container');
+        if (mapContainer) {
+          mapContainer.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text-muted)"><i class="fas fa-map-location-dot" style="font-size:3rem;color:var(--cyan)"></i><p style="font-size:0.9rem">Interactive map available in Scroll or Slider mode</p></div>';
+        }
+      }
+      // Re-render charts if needed
+      if (section === 'dashboard') {
+        setTimeout(() => {
+          drawGauge(body.querySelector('#noiseGauge') || document.getElementById('noiseGauge'), state.currentNoise);
+          renderSourceChart();
+          renderHourlyChart();
+        }, 100);
+      }
+      if (section === 'forecast') {
+        setTimeout(() => { renderForecastChart(); renderForecastTimeline(); renderDailyCards(); }, 100);
+      }
+      if (section === 'greenbarrier') {
+        setTimeout(() => renderBarrier(), 100);
+      }
+      if (section === 'planner') {
+        setTimeout(() => renderPlanner(), 100);
+      }
+      if (section === 'advisor') {
+        setTimeout(() => renderBuildingAdvisor(), 100);
+      }
+    }
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    initSectionOnce(section);
+  }
+
+  function closeHubOverlay() {
+    const overlay = document.getElementById('hubOverlay');
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
   }
 
   function initMobileToggle() {
