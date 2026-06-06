@@ -10,6 +10,32 @@
   // CONSTANTS & CONFIGURATION
   // ============================================================
 
+  function getCSSVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function getAccentColor() { return getCSSVar('--accent') || '#2997ff'; }
+  function getAccentHover() { return getCSSVar('--accent-hover') || '#0066cc'; }
+  function getTextMuted() { return getCSSVar('--text-muted') || '#707070'; }
+  function getTextSecondary() { return getCSSVar('--text-secondary') || '#333'; }
+  function getChartGrid() { return getCSSVar('--chart-grid') || 'rgba(0,0,0,0.06)'; }
+  function getTooltipBg() { return getCSSVar('--tooltip-bg') || 'rgba(255,255,255,0.95)'; }
+  function getTooltipBorder() { return getCSSVar('--tooltip-border') || 'rgba(0,0,0,0.1)'; }
+  function getGaugeTrack() { return getCSSVar('--gauge-track') || 'rgba(0,0,0,0.06)'; }
+
+  function chartTooltip() {
+    const bg = getTooltipBg();
+    const bd = getTooltipBorder();
+    return {
+      backgroundColor: bg,
+      titleColor: getCSSVar('--text-primary') || '#1d1d1f',
+      bodyColor: getCSSVar('--text-secondary') || '#333',
+      borderColor: bd,
+      borderWidth: 1,
+      padding: 8,
+    };
+  }
+
   const COLORS = {
     cyan: '#06B6D4',
     emerald: '#10B981',
@@ -18,9 +44,6 @@
     red: '#EF4444',
     purple: '#A855F7',
     pink: '#EC4899',
-    textSecondary: '#94A3B8',
-    textMuted: '#64748B',
-    bgCard: 'rgba(30, 41, 59, 0.6)',
   };
 
   const RISK_LEVELS = [
@@ -241,14 +264,6 @@
     ctx.font = '18px "Font Awesome 6 Free"';
     ctx.textAlign = 'center';
     ctx.fillText('\uF028', speakerX, speakerY + 6);
-
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.arc(speakerX, speakerY, 22 + i * 18, -0.4, 0.4);
-      ctx.strokeStyle = `rgba(239,68,68,${0.25 - i * 0.07})`;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
 
     const barrierX = w * 0.32;
     const barrierTop = h * 0.75 - height * (h / 300) * 10;
@@ -501,6 +516,7 @@
     state.weeklyData = generateWeeklyData(state.currentNoise);
     state.hotspots = generateMapHotspots();
 
+    initThemeSwitcher();
     initModeSwitcher();
     initNavigation();
     initMobileToggle();
@@ -621,6 +637,41 @@
   function initSectionOnce(section) {
     if (initializedSections.has(section)) return;
     initializedSections.add(section);
+  }
+
+  // ============================================================
+  // THEME SWITCHER
+  // ============================================================
+
+  function initThemeSwitcher() {
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        setTheme(btn.dataset.theme);
+      });
+    });
+  }
+
+  function setTheme(theme) {
+    document.body.classList.remove('theme-apple', 'theme-caldera');
+    document.body.classList.add('theme-' + theme);
+    reRenderThemeDependent();
+  }
+
+  function reRenderThemeDependent() {
+    setTimeout(() => {
+      // Re-render charts that depend on theme colors
+      if (document.getElementById('sourceChart')) renderSourceChart();
+      if (document.getElementById('hourlyChart')) renderHourlyChart();
+      if (document.getElementById('forecastChart')) renderForecastChart();
+      if (document.getElementById('barrierResultChart')) renderBarrierResultChart(
+        parseFloat(document.getElementById('resultBefore')?.textContent) || 78,
+        parseFloat(document.getElementById('resultAfter')?.textContent) || 68
+      );
+      if (document.getElementById('plannerChart')) renderPlanner();
+      if (document.getElementById('noiseGauge')) drawGauge(document.getElementById('noiseGauge'), state.currentNoise);
+    }, 50);
   }
 
   // ============================================================
@@ -797,7 +848,7 @@
       if (section === 'map') {
         const mapContainer = body.querySelector('.map-container');
         if (mapContainer) {
-          mapContainer.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text-muted)"><i class="fas fa-map-location-dot" style="font-size:3rem;color:var(--cyan)"></i><p style="font-size:0.9rem">Interactive map available in Scroll or Slider mode</p></div>';
+          mapContainer.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text-muted)"><i class="fas fa-map-location-dot" style="font-size:3rem;color:var(--accent)"></i><p style="font-size:0.9rem">Interactive map available in Scroll or Slider mode</p></div>';
         }
       }
       // Re-render charts if needed
@@ -951,12 +1002,7 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(30,41,59,0.95)',
-            titleColor: '#F1F5F9',
-            bodyColor: '#94A3B8',
-            borderColor: 'rgba(255,255,255,0.08)',
-            borderWidth: 1,
-            padding: 10,
+            ...chartTooltip(),
             callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed}%` },
           },
         },
@@ -980,17 +1026,15 @@
         labels: data.map(d => d.time),
         datasets: [{
           data: data.map(d => d.noise),
-          borderColor: COLORS.cyan,
+          borderColor: getAccentColor(),
           backgroundColor: (c) => {
+            const ac = getAccentColor();
             const g = c.chart.ctx.createLinearGradient(0, 0, 0, 200);
-            g.addColorStop(0, 'rgba(6,182,212,0.25)');
-            g.addColorStop(1, 'rgba(6,182,212,0)');
-            return g;
+            g.addColorStop(0, ac + '40');
+            g.addColorStop(1, ac + '00');
           },
-          fill: true,
-          tension: 0.4,
-          pointRadius: 2,
-          pointBackgroundColor: COLORS.cyan,
+          pointBackgroundColor: getAccentColor(),
+
           borderWidth: 2,
         }],
       },
@@ -1000,18 +1044,13 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(30,41,59,0.95)',
-            titleColor: '#F1F5F9',
-            bodyColor: '#94A3B8',
-            borderColor: 'rgba(255,255,255,0.08)',
-            borderWidth: 1,
-            padding: 10,
+            ...chartTooltip(),
             callbacks: { label: ctx => `${ctx.parsed.y} dB` },
           },
         },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: COLORS.textMuted, font: { size: 9 }, maxTicksLimit: 12 } },
-          y: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: COLORS.textMuted, font: { size: 9 } }, min: 20, max: 100 },
+          x: { grid: { color: getChartGrid(), drawBorder: false }, ticks: { color: getTextMuted(), font: { size: 9 }, maxTicksLimit: 12 } },
+          y: { grid: { color: getChartGrid(), drawBorder: false }, ticks: { color: getTextMuted(), font: { size: 9 } }, min: 20, max: 100 },
         },
       },
     });
@@ -1051,18 +1090,13 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(30,41,59,0.95)',
-            titleColor: '#F1F5F9',
-            bodyColor: '#94A3B8',
-            borderColor: 'rgba(255,255,255,0.08)',
-            borderWidth: 1,
-            padding: 10,
+            ...chartTooltip(),
             callbacks: { label: ctx => `${ctx.parsed.y} dB` },
           },
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: COLORS.textMuted, font: { size: 8 }, maxTicksLimit: 12 } },
-          y: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: COLORS.textMuted, font: { size: 9 } }, min: 20, max: 100 },
+          x: { grid: { display: false }, ticks: { color: getTextMuted(), font: { size: 8 }, maxTicksLimit: 12 } },
+          y: { grid: { color: getChartGrid(), drawBorder: false }, ticks: { color: getTextMuted(), font: { size: 9 } }, min: 20, max: 100 },
         },
       },
     });
@@ -1272,18 +1306,13 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(30,41,59,0.95)',
-            titleColor: '#F1F5F9',
-            bodyColor: '#94A3B8',
-            borderColor: 'rgba(255,255,255,0.08)',
-            borderWidth: 1,
-            padding: 10,
+            ...chartTooltip(),
             callbacks: { label: ctx => `${ctx.parsed.y} dB` },
           },
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: COLORS.textMuted, font: { size: 10 } } },
-          y: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: COLORS.textMuted, font: { size: 9 } }, min: 0, max: 120 },
+          x: { grid: { display: false }, ticks: { color: getTextMuted(), font: { size: 10 } } },
+          y: { grid: { color: getChartGrid(), drawBorder: false }, ticks: { color: getTextMuted(), font: { size: 9 } }, min: 0, max: 120 },
         },
       },
     });
@@ -1386,18 +1415,13 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(30,41,59,0.95)',
-            titleColor: '#F1F5F9',
-            bodyColor: '#94A3B8',
-            borderColor: 'rgba(255,255,255,0.08)',
-            borderWidth: 1,
-            padding: 10,
+            ...chartTooltip(),
             callbacks: { label: ctx => `${ctx.parsed.x} dB reduction` },
           },
         },
         scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, ticks: { color: COLORS.textMuted, font: { size: 9 } } },
-          y: { grid: { display: false }, ticks: { color: COLORS.textSecondary, font: { size: 10 } } },
+          x: { grid: { color: getChartGrid(), drawBorder: false }, ticks: { color: getTextMuted(), font: { size: 9 } } },
+          y: { grid: { display: false }, ticks: { color: getTextSecondary(), font: { size: 10 } } },
         },
       },
     });
